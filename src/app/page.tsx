@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type Employee = {
   id: string;
@@ -19,9 +19,57 @@ export default function Home() {
   const [newPhone, setNewPhone] = useState("");
   const [showAddEmployee, setShowAddEmployee] = useState(false);
 
+  // Voice
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
   useEffect(() => {
     fetchEmployees();
+    // Check browser support
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setVoiceSupported(true);
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = "en-IN"; // Indian English
+
+      recognition.onresult = (event: any) => {
+        let transcript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        setAiMessage(transcript);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event: any) => {
+        setIsListening(false);
+        if (event.error === "not-allowed") {
+          setMessage("Microphone access denied. Please allow mic permission.");
+        }
+      };
+
+      recognitionRef.current = recognition;
+    }
   }, []);
+
+  const toggleVoice = () => {
+    if (!recognitionRef.current) return;
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setAiMessage("");
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
 
   const fetchEmployees = async () => {
     const res = await fetch("/api/employees");
@@ -54,11 +102,11 @@ export default function Home() {
     const data = await res.json();
     if (data.success) {
       setTitle(data.task.title);
-      const match = employees.find(e =>
+      const match = employees.find((e) =>
         aiMessage.toLowerCase().includes(e.name.toLowerCase())
       );
       if (match) setSelectedEmployee(match);
-      setMessage("AI parsed the task. Review and click Create Task.");
+      setMessage("AI parsed the task. Review and click Send Task.");
     } else {
       setMessage("AI could not parse. Please fill manually.");
     }
@@ -128,8 +176,10 @@ export default function Home() {
         )}
 
         <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
-          {employees.length === 0 && <p style={{ color: "#999", fontSize: "13px" }}>No employees yet. Add one above.</p>}
-          {employees.map(emp => (
+          {employees.length === 0 && (
+            <p style={{ color: "#999", fontSize: "13px" }}>No employees yet. Add one above.</p>
+          )}
+          {employees.map((emp) => (
             <button
               key={emp.id}
               onClick={() => setSelectedEmployee(emp)}
@@ -157,19 +207,92 @@ export default function Home() {
       {/* AI Input */}
       <div style={{ marginTop: "16px", padding: "20px", border: "1px solid #2E86C1", borderRadius: "8px" }}>
         <h3 style={{ margin: "0 0 12px", color: "#2E86C1" }}>AI Task Input</h3>
-        <textarea
-          placeholder="Tell John to clean the office by 5pm"
-          value={aiMessage}
-          onChange={(e) => setAiMessage(e.target.value)}
-          style={{ width: "100%", padding: "10px", fontSize: "14px", height: "70px", boxSizing: "border-box" }}
-        />
-        <button
-          onClick={parseWithAI}
-          disabled={loading}
-          style={{ marginTop: "8px", padding: "10px 20px", backgroundColor: "#2E86C1", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }}
-        >
-          {loading ? "Parsing..." : "Parse with AI"}
-        </button>
+
+        {/* Textarea + Mic button row */}
+        <div style={{ position: "relative" }}>
+          <textarea
+            placeholder={isListening ? "🎤 Listening... speak now" : "Tell John to clean the office by 5pm"}
+            value={aiMessage}
+            onChange={(e) => setAiMessage(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "10px 48px 10px 10px",
+              fontSize: "14px",
+              height: "80px",
+              boxSizing: "border-box",
+              borderColor: isListening ? "#E74C3C" : undefined,
+              outline: isListening ? "2px solid #E74C3C" : undefined,
+              resize: "vertical",
+            }}
+          />
+          {voiceSupported && (
+            <button
+              onClick={toggleVoice}
+              title={isListening ? "Stop recording" : "Speak task"}
+              style={{
+                position: "absolute",
+                top: "8px",
+                right: "8px",
+                width: "34px",
+                height: "34px",
+                borderRadius: "50%",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "18px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: isListening ? "#E74C3C" : "#2E86C1",
+                color: "white",
+                boxShadow: isListening ? "0 0 0 4px rgba(231,76,60,0.25)" : "none",
+                animation: isListening ? "pulse 1.2s infinite" : "none",
+              }}
+            >
+              {isListening ? "⏹" : "🎤"}
+            </button>
+          )}
+        </div>
+
+        {/* Pulse animation */}
+        <style>{`
+          @keyframes pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(231,76,60,0.5); }
+            70%  { box-shadow: 0 0 0 8px rgba(231,76,60,0); }
+            100% { box-shadow: 0 0 0 0 rgba(231,76,60,0); }
+          }
+        `}</style>
+
+        {isListening && (
+          <p style={{ margin: "6px 0 0", fontSize: "12px", color: "#E74C3C" }}>
+            🔴 Recording… tap ⏹ to stop
+          </p>
+        )}
+
+        <div style={{ marginTop: "10px", display: "flex", gap: "8px" }}>
+          <button
+            onClick={parseWithAI}
+            disabled={loading || !aiMessage.trim()}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: aiMessage.trim() ? "#2E86C1" : "#CCCCCC",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: aiMessage.trim() ? "pointer" : "not-allowed",
+              fontSize: "14px",
+            }}
+          >
+            {loading ? "Parsing..." : "Parse with AI"}
+          </button>
+          {aiMessage && (
+            <button
+              onClick={() => setAiMessage("")}
+              style={{ padding: "10px 14px", backgroundColor: "#F8F9FA", color: "#555", border: "1px solid #CCC", borderRadius: "4px", cursor: "pointer", fontSize: "13px" }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Task Details */}
@@ -184,7 +307,16 @@ export default function Home() {
         <button
           onClick={sendTask}
           disabled={loading || !selectedEmployee}
-          style={{ width: "100%", padding: "12px", backgroundColor: selectedEmployee ? "#1A5276" : "#CCCCCC", color: "white", border: "none", borderRadius: "4px", cursor: selectedEmployee ? "pointer" : "not-allowed", fontSize: "16px" }}
+          style={{
+            width: "100%",
+            padding: "12px",
+            backgroundColor: selectedEmployee ? "#1A5276" : "#CCCCCC",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: selectedEmployee ? "pointer" : "not-allowed",
+            fontSize: "16px",
+          }}
         >
           {loading ? "Sending..." : `Send Task${selectedEmployee ? ` to ${selectedEmployee.name}` : ""}`}
         </button>
