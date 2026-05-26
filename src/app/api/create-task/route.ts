@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function sendWhatsAppMessage(to: string) {
+async function sendWhatsAppMessage(to: string, title: string, priority: string, deadline: string | null) {
   const phoneNumberId = process.env.META_PHONE_NUMBER_ID!;
   const token = process.env.META_WHATSAPP_TOKEN!;
 
@@ -24,8 +24,8 @@ async function sendWhatsAppMessage(to: string) {
         type: "template",
         template: {
           name: "hello_world",
-          language: { code: "en_US" }
-        }
+          language: { code: "en_US" },
+        },
       }),
     }
   );
@@ -34,6 +34,13 @@ async function sendWhatsAppMessage(to: string) {
 }
 
 export async function POST(request: Request) {
+  const authHeader = request.headers.get("Authorization");
+  const token = authHeader?.replace("Bearer ", "");
+  if (!token) return NextResponse.json({ success: false, error: "Unauthorized" });
+
+  const { data: { user } } = await supabase.auth.getUser(token);
+  if (!user) return NextResponse.json({ success: false, error: "Unauthorized" });
+
   const { title, assigned_to, notes, deadline, priority } = await request.json();
 
   const { data, error } = await supabase
@@ -45,16 +52,20 @@ export async function POST(request: Request) {
       deadline: deadline || null,
       priority: priority || "Medium",
       status: "pending",
+      user_id: user.id,
     }])
     .select();
 
-  if (error) {
-    return NextResponse.json({ success: false, error: error.message });
-  }
+  if (error) return NextResponse.json({ success: false, error: error.message });
 
   const task = data[0];
+  const waResult = await sendWhatsAppMessage(
+    assigned_to.replace("+", ""),
+    title,
+    priority || "Medium",
+    deadline || null
+  );
 
-  const waResult = await sendWhatsAppMessage(assigned_to.replace("+", ""));
   console.log("META RESPONSE:", JSON.stringify(waResult));
 
   if (waResult.error) {

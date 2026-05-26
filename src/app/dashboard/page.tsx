@@ -68,6 +68,7 @@ function isOverdue(deadline: string | null, status: string) {
 }
 
 export default function Dashboard() {
+  const [user, setUser] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,33 +80,50 @@ export default function Dashboard() {
   const [toast, setToast] = useState("");
 
   useEffect(() => {
-    fetchAll();
-    const interval = setInterval(fetchTasks, 30000);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        window.location.href = "/login";
+      } else {
+        setUser(session.user);
+        fetchAll(session.user.id);
+      }
+    });
+
+    const interval = setInterval(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) fetchTasks(session.user.id);
+      });
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  async function fetchAll() {
+  async function fetchAll(userId: string) {
     setLoading(true);
-    await Promise.all([fetchTasks(), fetchEmployees()]);
+    await Promise.all([fetchTasks(userId), fetchEmployees(userId)]);
     setLoading(false);
   }
 
-  async function fetchTasks() {
+  async function fetchTasks(userId: string) {
     const { data } = await supabase
       .from("tasks")
       .select("*")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (data) setTasks(data);
   }
 
-  async function fetchEmployees() {
-    const { data } = await supabase.from("employees").select("*");
+  async function fetchEmployees(userId: string) {
+    const { data } = await supabase
+      .from("employees")
+      .select("*")
+      .eq("user_id", userId)
+      .order("name");
     if (data) setEmployees(data);
   }
 
   async function refreshTasks() {
     setRefreshing(true);
-    await fetchTasks();
+    if (user) await fetchTasks(user.id);
     setRefreshing(false);
     showToast("Refreshed");
   }
@@ -156,6 +174,13 @@ export default function Dashboard() {
 
   const uniquePhones = [...new Set(tasks.map((t) => t.assigned_to))];
 
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  };
+
+  if (!user) return <div style={{ padding: "40px", textAlign: "center", fontFamily: "sans-serif" }}>Loading...</div>;
+
   return (
     <div style={{ minHeight: "100vh", background: "#F0F4F8", fontFamily: "sans-serif" }}>
 
@@ -163,15 +188,17 @@ export default function Dashboard() {
       <div style={{ background: "#1A5276", color: "white", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontSize: "16px", fontWeight: 600 }}>📊 Task Dashboard</div>
-          <div style={{ fontSize: "11px", opacity: 0.75 }}>WhatsApp Task Manager</div>
+          <div style={{ fontSize: "11px", opacity: 0.75 }}>{user.email}</div>
         </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <a href="/" style={{ color: "white", fontSize: "12px", opacity: 0.85, textDecoration: "none" }}>← Send</a>
-          <button
-            onClick={refreshTasks}
-            style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}
-          >
+          <button onClick={refreshTasks}
+            style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>
             {refreshing ? "..." : "⟳ Refresh"}
+          </button>
+          <button onClick={signOut}
+            style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>
+            Sign Out
           </button>
         </div>
       </div>
@@ -244,38 +271,20 @@ export default function Dashboard() {
               const overdue = isOverdue(task.deadline, task.status);
 
               return (
-                <div
-                  key={task.id}
-                  style={{
-                    background: "white",
-                    borderRadius: "12px",
-                    padding: "14px",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                    borderLeft: overdue ? "4px solid #E24B4A" : "4px solid #2E86C1",
-                  }}
-                >
-                  {/* Top row: title + delete */}
+                <div key={task.id} style={{ background: "white", borderRadius: "12px", padding: "14px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", borderLeft: overdue ? "4px solid #E24B4A" : "4px solid #2E86C1" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
                     <div style={{ fontWeight: 600, fontSize: "14px", color: "#1A1A1A", flex: 1, marginRight: "8px" }}>
                       {overdue && <span style={{ color: "#E24B4A", marginRight: "4px" }}>⚠️</span>}
                       {task.title}
                     </div>
-                    <button
-                      onClick={() => deleteTask(task.id)}
-                      style={{ padding: "4px 10px", background: "#FFF0F0", color: "#A32D2D", border: "1px solid #F7C1C1", borderRadius: "6px", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}
-                    >
+                    <button onClick={() => deleteTask(task.id)}
+                      style={{ padding: "4px 10px", background: "#FFF0F0", color: "#A32D2D", border: "1px solid #F7C1C1", borderRadius: "6px", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
                       Delete
                     </button>
                   </div>
 
-                  {/* Employee row */}
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-                    <div style={{
-                      width: "30px", height: "30px", borderRadius: "50%",
-                      background: col.bg, color: col.text,
-                      fontSize: "11px", fontWeight: 700,
-                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                    }}>
+                    <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: col.bg, color: col.text, fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {initials(empName)}
                     </div>
                     <div>
@@ -284,31 +293,18 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Badges + status row */}
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                    {/* Priority badge */}
                     <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 500, background: pc.bg, color: pc.text }}>
                       {task.priority || "Medium"}
                     </span>
-
-                    {/* Deadline */}
                     {task.deadline && (
                       <span style={{ fontSize: "12px", color: overdue ? "#A32D2D" : "#666" }}>
                         📅 {formatDate(task.deadline)}
                       </span>
                     )}
-
-                    {/* Status dropdown — pushed to right */}
                     <div style={{ marginLeft: "auto" }}>
-                      <select
-                        value={task.status}
-                        onChange={(e) => updateStatus(task.id, e.target.value)}
-                        style={{
-                          padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 500,
-                          border: "none", cursor: "pointer",
-                          background: sc.bg, color: sc.text,
-                        }}
-                      >
+                      <select value={task.status} onChange={(e) => updateStatus(task.id, e.target.value)}
+                        style={{ padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 500, border: "none", cursor: "pointer", background: sc.bg, color: sc.text }}>
                         <option value="pending">Pending</option>
                         <option value="completed">Completed</option>
                         <option value="failed">Failed</option>
@@ -322,13 +318,8 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Toast */}
       {toast && (
-        <div style={{
-          position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)",
-          background: "#1A5276", color: "white", padding: "12px 24px",
-          borderRadius: "8px", fontSize: "14px", zIndex: 999,
-        }}>
+        <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: "#1A5276", color: "white", padding: "12px 24px", borderRadius: "8px", fontSize: "14px", zIndex: 999 }}>
           {toast}
         </div>
       )}
