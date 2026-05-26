@@ -199,25 +199,25 @@ export default function Dashboard() {
             placeholder="🔍 Search tasks..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ width: "100%", padding: "9px 12px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", boxSizing: "border-box", marginBottom: "8px" }}
+            style={{ width: "100%", padding: "9px 12px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", boxSizing: "border-box", marginBottom: "8px", color: "#111", background: "#fff" }}
           />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px" }}>
+              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", color: "#111", background: "#fff" }}>
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
               <option value="completed">Completed</option>
               <option value="failed">Failed</option>
             </select>
             <select value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)}
-              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px" }}>
+              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", color: "#111", background: "#fff" }}>
               <option value="all">All Employees</option>
               {uniquePhones.map((p) => (
                 <option key={p} value={p}>{getEmpName(p)}</option>
               ))}
             </select>
             <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}
-              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px" }}>
+              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", color: "#111", background: "#fff" }}>
               <option value="all">All Priority</option>
               <option value="High">High</option>
               <option value="Medium">Medium</option>
