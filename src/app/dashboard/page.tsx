@@ -157,139 +157,154 @@ export default function Dashboard() {
   const uniquePhones = [...new Set(tasks.map((t) => t.assigned_to))];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8F9FB", fontFamily: "sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#F0F4F8", fontFamily: "sans-serif" }}>
 
       {/* Header */}
-      <div style={{ background: "#1A5276", color: "white", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "22px" }}>📊</span>
-          <div>
-            <div style={{ fontSize: "16px", fontWeight: 600 }}>Task Dashboard</div>
-            <div style={{ fontSize: "12px", opacity: 0.75 }}>WhatsApp Task Manager</div>
-          </div>
+      <div style={{ background: "#1A5276", color: "white", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: "16px", fontWeight: 600 }}>📊 Task Dashboard</div>
+          <div style={{ fontSize: "11px", opacity: 0.75 }}>WhatsApp Task Manager</div>
         </div>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <a href="/" style={{ color: "white", fontSize: "13px", opacity: 0.85, textDecoration: "none" }}>← Back to Send</a>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <a href="/" style={{ color: "white", fontSize: "12px", opacity: 0.85, textDecoration: "none" }}>← Send</a>
           <button
             onClick={refreshTasks}
-            style={{ padding: "7px 14px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}
+            style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}
           >
-            {refreshing ? "⟳ Refreshing..." : "⟳ Refresh"}
+            {refreshing ? "..." : "⟳ Refresh"}
           </button>
         </div>
       </div>
 
-      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "24px 20px" }}>
+      <div style={{ padding: "14px" }}>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
           {[
             { label: "Total Tasks", value: stats.total, color: "#1A5276" },
             { label: "Completed", value: stats.completed, color: "#0F6E56" },
             { label: "Pending", value: stats.pending, color: "#854F0B" },
             { label: "Overdue", value: stats.overdue, color: "#A32D2D" },
           ].map((s) => (
-            <div key={s.label} style={{ background: "white", border: "1px solid #E8E8E8", borderRadius: "10px", padding: "16px 18px" }}>
-              <div style={{ fontSize: "12px", color: "#888", marginBottom: "6px" }}>{s.label}</div>
-              <div style={{ fontSize: "28px", fontWeight: 600, color: s.color }}>{s.value}</div>
+            <div key={s.label} style={{ background: "white", borderRadius: "10px", padding: "12px 14px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+              <div style={{ fontSize: "11px", color: "#888", marginBottom: "4px" }}>{s.label}</div>
+              <div style={{ fontSize: "26px", fontWeight: 700, color: s.color }}>{s.value}</div>
             </div>
           ))}
         </div>
 
         {/* Filters */}
-        <div style={{ background: "white", border: "1px solid #E8E8E8", borderRadius: "12px", padding: "16px 20px", marginBottom: "16px", display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
+        <div style={{ background: "white", borderRadius: "10px", padding: "12px", marginBottom: "14px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
           <input
             placeholder="🔍 Search tasks..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ padding: "8px 12px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", minWidth: "180px" }}
+            style={{ width: "100%", padding: "9px 12px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", boxSizing: "border-box", marginBottom: "8px" }}
           />
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            style={{ padding: "8px 12px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px" }}>
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-          </select>
-          <select value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)}
-            style={{ padding: "8px 12px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px" }}>
-            <option value="all">All Employees</option>
-            {uniquePhones.map((p) => (
-              <option key={p} value={p}>{getEmpName(p)}</option>
-            ))}
-          </select>
-          <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}
-            style={{ padding: "8px 12px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px" }}>
-            <option value="all">All Priority</option>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
-            <option value="Low">Low</option>
-          </select>
-          <span style={{ fontSize: "13px", color: "#888", marginLeft: "auto" }}>{filtered.length} tasks</span>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px" }}>
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+            </select>
+            <select value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)}
+              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px" }}>
+              <option value="all">All Employees</option>
+              {uniquePhones.map((p) => (
+                <option key={p} value={p}>{getEmpName(p)}</option>
+              ))}
+            </select>
+            <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}
+              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px" }}>
+              <option value="all">All Priority</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", fontSize: "13px", color: "#888" }}>
+              {filtered.length} tasks
+            </div>
+          </div>
         </div>
 
-        {/* Task Table */}
+        {/* Task Cards */}
         {loading ? (
           <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>Loading tasks...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "50px", color: "#AAA", fontSize: "14px" }}>No tasks found</div>
         ) : (
-          <div style={{ background: "white", border: "1px solid #E8E8E8", borderRadius: "12px", overflow: "hidden" }}>
-            <div style={{
-              display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 1fr 1fr 100px",
-              padding: "12px 20px", background: "#F5F7FA",
-              borderBottom: "1px solid #E8E8E8", fontSize: "12px", color: "#888", fontWeight: 600,
-            }}>
-              <div>TASK</div>
-              <div>ASSIGNED TO</div>
-              <div>STATUS</div>
-              <div>PRIORITY</div>
-              <div>DEADLINE</div>
-              <div>ACTIONS</div>
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {filtered.map((task) => {
+              const empName = getEmpName(task.assigned_to);
+              const col = getAvatarColor(empName);
+              const sc = statusStyles[task.status] || { bg: "#EEE", text: "#666", label: task.status };
+              const pc = priorityStyles[task.priority || "Medium"] || priorityStyles.Medium;
+              const overdue = isOverdue(task.deadline, task.status);
 
-            {filtered.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "50px", color: "#AAA", fontSize: "14px" }}>No tasks found</div>
-            ) : (
-              filtered.map((task, idx) => {
-                const empName = getEmpName(task.assigned_to);
-                const col = getAvatarColor(empName);
-                const sc = statusStyles[task.status] || { bg: "#EEE", text: "#666", label: task.status };
-                const pc = priorityStyles[task.priority || "Medium"] || priorityStyles.Medium;
-                const overdue = isOverdue(task.deadline, task.status);
+              return (
+                <div
+                  key={task.id}
+                  style={{
+                    background: "white",
+                    borderRadius: "12px",
+                    padding: "14px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                    borderLeft: overdue ? "4px solid #E24B4A" : "4px solid #2E86C1",
+                  }}
+                >
+                  {/* Top row: title + delete */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
+                    <div style={{ fontWeight: 600, fontSize: "14px", color: "#1A1A1A", flex: 1, marginRight: "8px" }}>
+                      {overdue && <span style={{ color: "#E24B4A", marginRight: "4px" }}>⚠️</span>}
+                      {task.title}
+                    </div>
+                    <button
+                      onClick={() => deleteTask(task.id)}
+                      style={{ padding: "4px 10px", background: "#FFF0F0", color: "#A32D2D", border: "1px solid #F7C1C1", borderRadius: "6px", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}
+                    >
+                      Delete
+                    </button>
+                  </div>
 
-                return (
-                  <div
-                    key={task.id}
-                    style={{
-                      display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 1fr 1fr 100px",
-                      padding: "13px 20px",
-                      borderBottom: idx < filtered.length - 1 ? "1px solid #F0F0F0" : "none",
-                      alignItems: "center", fontSize: "13px",
-                      background: overdue ? "#FFFBF5" : "white",
-                    }}
-                  >
+                  {/* Employee row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                    <div style={{
+                      width: "30px", height: "30px", borderRadius: "50%",
+                      background: col.bg, color: col.text,
+                      fontSize: "11px", fontWeight: 700,
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    }}>
+                      {initials(empName)}
+                    </div>
                     <div>
-                      <div style={{ fontWeight: 500, color: "#222", marginBottom: "2px" }}>{task.title}</div>
+                      <div style={{ fontSize: "13px", fontWeight: 500, color: "#333" }}>{empName}</div>
                       <div style={{ fontSize: "11px", color: "#AAA" }}>{formatDate(task.created_at)}</div>
                     </div>
+                  </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <div style={{
-                        width: "28px", height: "28px", borderRadius: "50%",
-                        background: col.bg, color: col.text,
-                        fontSize: "11px", fontWeight: 600,
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                      }}>
-                        {initials(empName)}
-                      </div>
-                      <span style={{ color: "#444" }}>{empName}</span>
-                    </div>
+                  {/* Badges + status row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    {/* Priority badge */}
+                    <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 500, background: pc.bg, color: pc.text }}>
+                      {task.priority || "Medium"}
+                    </span>
 
-                    <div>
+                    {/* Deadline */}
+                    {task.deadline && (
+                      <span style={{ fontSize: "12px", color: overdue ? "#A32D2D" : "#666" }}>
+                        📅 {formatDate(task.deadline)}
+                      </span>
+                    )}
+
+                    {/* Status dropdown — pushed to right */}
+                    <div style={{ marginLeft: "auto" }}>
                       <select
                         value={task.status}
                         onChange={(e) => updateStatus(task.id, e.target.value)}
                         style={{
-                          padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 500,
+                          padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 500,
                           border: "none", cursor: "pointer",
                           background: sc.bg, color: sc.text,
                         }}
@@ -299,37 +314,10 @@ export default function Dashboard() {
                         <option value="failed">Failed</option>
                       </select>
                     </div>
-
-                    <div>
-                      <span style={{
-                        padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 500,
-                        background: pc.bg, color: pc.text,
-                      }}>
-                        {task.priority || "Medium"}
-                      </span>
-                    </div>
-
-                    <div style={{ color: overdue ? "#A32D2D" : "#555", fontSize: "12px" }}>
-                      {overdue && <span style={{ marginRight: "4px" }}>⚠️</span>}
-                      {formatDate(task.deadline)}
-                    </div>
-
-                    <div>
-                      <button
-                        onClick={() => deleteTask(task.id)}
-                        style={{
-                          padding: "5px 10px", background: "#FFF0F0", color: "#A32D2D",
-                          border: "1px solid #F7C1C1", borderRadius: "6px",
-                          fontSize: "12px", cursor: "pointer",
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
                   </div>
-                );
-              })
-            )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
