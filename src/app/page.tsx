@@ -26,7 +26,6 @@ export default function Home() {
 
   useEffect(() => {
     fetchEmployees();
-    // Check browser support
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -34,7 +33,7 @@ export default function Home() {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.lang = "en-IN"; // Indian English
+      recognition.lang = "en-IN";
 
       recognition.onresult = (event: any) => {
         let transcript = "";
@@ -44,9 +43,7 @@ export default function Home() {
         setAiMessage(transcript);
       };
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
+      recognition.onend = () => setIsListening(false);
 
       recognition.onerror = (event: any) => {
         setIsListening(false);
@@ -140,8 +137,27 @@ export default function Home() {
     <main style={{ padding: "40px", fontFamily: "sans-serif", maxWidth: "540px" }}>
       <h1 style={{ color: "#1A5276" }}>WhatsApp Task Manager</h1>
 
+      {/* Dashboard Button */}
+      <div style={{ marginTop: "12px", marginBottom: "8px" }}>
+        <a
+          href="/dashboard"
+          style={{
+            display: "inline-block",
+            padding: "10px 20px",
+            backgroundColor: "#1A5276",
+            color: "white",
+            borderRadius: "6px",
+            textDecoration: "none",
+            fontSize: "14px",
+            fontWeight: 500,
+          }}
+        >
+          📊 View Task Dashboard
+        </a>
+      </div>
+
       {/* Employee List */}
-      <div style={{ marginTop: "24px", padding: "20px", border: "1px solid #CCCCCC", borderRadius: "8px" }}>
+      <div style={{ marginTop: "16px", padding: "20px", border: "1px solid #CCCCCC", borderRadius: "8px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ margin: 0, color: "#555" }}>Employees</h3>
           <button
@@ -208,7 +224,6 @@ export default function Home() {
       <div style={{ marginTop: "16px", padding: "20px", border: "1px solid #2E86C1", borderRadius: "8px" }}>
         <h3 style={{ margin: "0 0 12px", color: "#2E86C1" }}>AI Task Input</h3>
 
-        {/* Textarea + Mic button row */}
         <div style={{ position: "relative" }}>
           <textarea
             placeholder={isListening ? "🎤 Listening... speak now" : "Tell John to clean the office by 5pm"}
@@ -253,7 +268,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* Pulse animation */}
         <style>{`
           @keyframes pulse {
             0%   { box-shadow: 0 0 0 0 rgba(231,76,60,0.5); }
