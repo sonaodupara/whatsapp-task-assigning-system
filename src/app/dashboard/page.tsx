@@ -8,43 +8,29 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-type Task = {
-  id: string;
-  title: string;
-  assigned_to: string;
-  status: string;
-  created_at: string;
-  notes: string | null;
-  deadline: string | null;
-  priority: string | null;
-};
-
-type Employee = {
-  id: string;
-  name: string;
-  phone: string;
-};
+type Task = { id: string; title: string; assigned_to: string; status: string; created_at: string; notes: string | null; deadline: string | null; priority: string | null; };
+type Employee = { id: string; name: string; phone: string; };
 
 const PRIORITY_ORDER: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
 
-const statusStyles: Record<string, { bg: string; text: string; label: string }> = {
-  pending:   { bg: "#FAEEDA", text: "#854F0B", label: "Pending" },
-  completed: { bg: "#E1F5EE", text: "#0F6E56", label: "Completed" },
-  failed:    { bg: "#FCEBEB", text: "#A32D2D", label: "Failed" },
+const statusStyles: Record<string, { bg: string; text: string; border: string }> = {
+  pending:   { bg: "rgba(210,153,34,0.15)",  text: "#D29922", border: "rgba(210,153,34,0.3)" },
+  completed: { bg: "rgba(56,211,159,0.15)",  text: "#38D39F", border: "rgba(56,211,159,0.3)" },
+  failed:    { bg: "rgba(248,81,73,0.15)",   text: "#F85149", border: "rgba(248,81,73,0.3)" },
 };
 
-const priorityStyles: Record<string, { bg: string; text: string }> = {
-  High:   { bg: "#FCEBEB", text: "#A32D2D" },
-  Medium: { bg: "#FAEEDA", text: "#854F0B" },
-  Low:    { bg: "#E1F5EE", text: "#0F6E56" },
+const priorityStyles: Record<string, { bg: string; text: string; border: string }> = {
+  High:   { bg: "rgba(248,81,73,0.15)",   text: "#F85149", border: "rgba(248,81,73,0.3)" },
+  Medium: { bg: "rgba(210,153,34,0.15)",  text: "#D29922", border: "rgba(210,153,34,0.3)" },
+  Low:    { bg: "rgba(56,211,159,0.15)",  text: "#38D39F", border: "rgba(56,211,159,0.3)" },
 };
 
 const avatarColors = [
-  { bg: "#E6F1FB", text: "#185FA5" },
-  { bg: "#E1F5EE", text: "#0F6E56" },
-  { bg: "#FAEEDA", text: "#854F0B" },
-  { bg: "#EEEDFE", text: "#534AB7" },
-  { bg: "#FAECE7", text: "#993C1D" },
+  { bg: "rgba(88,166,255,0.2)", text: "#58A6FF" },
+  { bg: "rgba(56,211,159,0.2)", text: "#38D39F" },
+  { bg: "rgba(210,153,34,0.2)", text: "#D29922" },
+  { bg: "rgba(188,140,255,0.2)", text: "#BC8CFF" },
+  { bg: "rgba(248,81,73,0.2)", text: "#F85149" },
 ];
 
 function getAvatarColor(str: string) {
@@ -81,14 +67,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        window.location.href = "/login";
-      } else {
-        setUser(session.user);
-        fetchAll(session.user.id);
-      }
+      if (!session) window.location.href = "/login";
+      else { setUser(session.user); fetchAll(session.user.id); }
     });
-
     const interval = setInterval(() => {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) fetchTasks(session.user.id);
@@ -104,20 +85,12 @@ export default function Dashboard() {
   }
 
   async function fetchTasks(userId: string) {
-    const { data } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+    const { data } = await supabase.from("tasks").select("*").eq("user_id", userId).order("created_at", { ascending: false });
     if (data) setTasks(data);
   }
 
   async function fetchEmployees(userId: string) {
-    const { data } = await supabase
-      .from("employees")
-      .select("*")
-      .eq("user_id", userId)
-      .order("name");
+    const { data } = await supabase.from("employees").select("*").eq("user_id", userId).order("name");
     if (data) setEmployees(data);
   }
 
@@ -159,11 +132,7 @@ export default function Dashboard() {
       if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     })
-    .sort((a, b) => {
-      const pa = PRIORITY_ORDER[a.priority || "Medium"] ?? 1;
-      const pb = PRIORITY_ORDER[b.priority || "Medium"] ?? 1;
-      return pa - pb;
-    });
+    .sort((a, b) => (PRIORITY_ORDER[a.priority || "Medium"] ?? 1) - (PRIORITY_ORDER[b.priority || "Medium"] ?? 1));
 
   const stats = {
     total: tasks.length,
@@ -173,84 +142,83 @@ export default function Dashboard() {
   };
 
   const uniquePhones = [...new Set(tasks.map((t) => t.assigned_to))];
+  const signOut = async () => { await supabase.auth.signOut(); window.location.href = "/login"; };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
+  const selectStyle = {
+    padding: "8px 10px", fontSize: "13px",
+    background: "#0D1117", border: "1px solid #30363D",
+    borderRadius: "8px", color: "#F0F6FF", outline: "none",
   };
 
-  if (!user) return <div style={{ padding: "40px", textAlign: "center", fontFamily: "sans-serif" }}>Loading...</div>;
+  if (!user) return (
+    <div style={{ minHeight: "100vh", background: "#0D1117", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ color: "#58A6FF", fontSize: "14px", fontFamily: "sans-serif" }}>Loading...</div>
+    </div>
+  );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F0F4F8", fontFamily: "sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#0D1117", fontFamily: "'Segoe UI', sans-serif", color: "#F0F6FF" }}>
 
       {/* Header */}
-      <div style={{ background: "#1A5276", color: "white", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontSize: "16px", fontWeight: 600 }}>📊 Task Dashboard</div>
-          <div style={{ fontSize: "11px", opacity: 0.75 }}>{user.email}</div>
+      <div style={{ background: "#161B22", borderBottom: "1px solid #21262D", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #1A5276, #2E86C1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>💬</div>
+          <span style={{ fontSize: "15px", fontWeight: 600 }}>TaskSend</span>
+          <span style={{ fontSize: "12px", color: "#484F58", paddingLeft: "8px", borderLeft: "1px solid #21262D" }}>Dashboard</span>
         </div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <a href="/" style={{ color: "white", fontSize: "12px", opacity: 0.85, textDecoration: "none" }}>← Send</a>
-          <button onClick={refreshTasks}
-            style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>
-            {refreshing ? "..." : "⟳ Refresh"}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <a href="/" style={{ padding: "7px 14px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "13px", border: "1px solid #30363D" }}>← Send Task</a>
+          <button onClick={refreshTasks} style={{ padding: "7px 12px", background: "#21262D", color: "#8B949E", border: "1px solid #30363D", borderRadius: "8px", fontSize: "12px", cursor: "pointer" }}>
+            {refreshing ? "..." : "⟳"}
           </button>
-          <button onClick={signOut}
-            style={{ padding: "6px 12px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>
+          <button onClick={signOut} style={{ padding: "7px 12px", background: "transparent", color: "#6B7A8D", border: "1px solid #30363D", borderRadius: "8px", fontSize: "12px", cursor: "pointer" }}>
             Sign Out
           </button>
         </div>
       </div>
 
-      <div style={{ padding: "14px" }}>
+      <div style={{ padding: "16px" }}>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
           {[
-            { label: "Total Tasks", value: stats.total, color: "#1A5276" },
-            { label: "Completed", value: stats.completed, color: "#0F6E56" },
-            { label: "Pending", value: stats.pending, color: "#854F0B" },
-            { label: "Overdue", value: stats.overdue, color: "#A32D2D" },
+            { label: "Total Tasks", value: stats.total, color: "#58A6FF" },
+            { label: "Completed", value: stats.completed, color: "#38D39F" },
+            { label: "Pending", value: stats.pending, color: "#D29922" },
+            { label: "Overdue", value: stats.overdue, color: "#F85149" },
           ].map((s) => (
-            <div key={s.label} style={{ background: "white", borderRadius: "10px", padding: "12px 14px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-              <div style={{ fontSize: "11px", color: "#888", marginBottom: "4px" }}>{s.label}</div>
-              <div style={{ fontSize: "26px", fontWeight: 700, color: s.color }}>{s.value}</div>
+            <div key={s.label} style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "14px 16px" }}>
+              <div style={{ fontSize: "11px", color: "#6B7A8D", marginBottom: "6px", fontWeight: 600, letterSpacing: "0.05em" }}>{s.label.toUpperCase()}</div>
+              <div style={{ fontSize: "28px", fontWeight: 700, color: s.color }}>{s.value}</div>
             </div>
           ))}
         </div>
 
         {/* Filters */}
-        <div style={{ background: "white", borderRadius: "10px", padding: "12px", marginBottom: "14px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+        <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "14px", marginBottom: "14px" }}>
           <input
             placeholder="🔍 Search tasks..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ width: "100%", padding: "9px 12px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", boxSizing: "border-box", marginBottom: "8px", color: "#111", background: "#fff" }}
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            style={{ width: "100%", padding: "9px 12px", fontSize: "13px", background: "#0D1117", border: "1px solid #30363D", borderRadius: "8px", boxSizing: "border-box", marginBottom: "10px", color: "#F0F6FF", outline: "none" }}
           />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", color: "#111", background: "#fff" }}>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={selectStyle}>
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
               <option value="completed">Completed</option>
               <option value="failed">Failed</option>
             </select>
-            <select value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)}
-              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", color: "#111", background: "#fff" }}>
+            <select value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)} style={selectStyle}>
               <option value="all">All Employees</option>
-              {uniquePhones.map((p) => (
-                <option key={p} value={p}>{getEmpName(p)}</option>
-              ))}
+              {uniquePhones.map((p) => <option key={p} value={p}>{getEmpName(p)}</option>)}
             </select>
-            <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}
-              style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid #DDD", borderRadius: "7px", color: "#111", background: "#fff" }}>
+            <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)} style={selectStyle}>
               <option value="all">All Priority</option>
               <option value="High">High</option>
               <option value="Medium">Medium</option>
               <option value="Low">Low</option>
             </select>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", fontSize: "13px", color: "#888" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", fontSize: "13px", color: "#484F58" }}>
               {filtered.length} tasks
             </div>
           </div>
@@ -258,27 +226,38 @@ export default function Dashboard() {
 
         {/* Task Cards */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>Loading tasks...</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {[1,2,3].map((i) => (
+              <div key={i} style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "16px", height: "100px", opacity: 0.5 }} />
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "50px", color: "#AAA", fontSize: "14px" }}>No tasks found</div>
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#484F58" }}>
+            <div style={{ fontSize: "32px", marginBottom: "12px" }}>📭</div>
+            <div style={{ fontSize: "14px" }}>No tasks found</div>
+          </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {filtered.map((task) => {
               const empName = getEmpName(task.assigned_to);
               const col = getAvatarColor(empName);
-              const sc = statusStyles[task.status] || { bg: "#EEE", text: "#666", label: task.status };
+              const sc = statusStyles[task.status] || statusStyles.pending;
               const pc = priorityStyles[task.priority || "Medium"] || priorityStyles.Medium;
               const overdue = isOverdue(task.deadline, task.status);
 
               return (
-                <div key={task.id} style={{ background: "white", borderRadius: "12px", padding: "14px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", borderLeft: overdue ? "4px solid #E24B4A" : "4px solid #2E86C1" }}>
+                <div key={task.id} style={{
+                  background: "#161B22", borderRadius: "12px", padding: "14px",
+                  border: overdue ? "1px solid rgba(248,81,73,0.4)" : "1px solid #21262D",
+                  borderLeft: overdue ? "3px solid #F85149" : "3px solid #2E86C1",
+                }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
-                    <div style={{ fontWeight: 600, fontSize: "14px", color: "#1A1A1A", flex: 1, marginRight: "8px" }}>
-                      {overdue && <span style={{ color: "#E24B4A", marginRight: "4px" }}>⚠️</span>}
+                    <div style={{ fontWeight: 600, fontSize: "14px", color: "#F0F6FF", flex: 1, marginRight: "8px" }}>
+                      {overdue && <span style={{ color: "#F85149", marginRight: "4px" }}>⚠️</span>}
                       {task.title}
                     </div>
                     <button onClick={() => deleteTask(task.id)}
-                      style={{ padding: "4px 10px", background: "#FFF0F0", color: "#A32D2D", border: "1px solid #F7C1C1", borderRadius: "6px", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                      style={{ padding: "4px 10px", background: "rgba(248,81,73,0.1)", color: "#F85149", border: "1px solid rgba(248,81,73,0.3)", borderRadius: "6px", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
                       Delete
                     </button>
                   </div>
@@ -288,23 +267,23 @@ export default function Dashboard() {
                       {initials(empName)}
                     </div>
                     <div>
-                      <div style={{ fontSize: "13px", fontWeight: 500, color: "#333" }}>{empName}</div>
-                      <div style={{ fontSize: "11px", color: "#AAA" }}>{formatDate(task.created_at)}</div>
+                      <div style={{ fontSize: "13px", fontWeight: 500, color: "#C9D1D9" }}>{empName}</div>
+                      <div style={{ fontSize: "11px", color: "#484F58" }}>{formatDate(task.created_at)}</div>
                     </div>
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                    <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 500, background: pc.bg, color: pc.text }}>
+                    <span style={{ padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: 600, background: pc.bg, color: pc.text, border: `1px solid ${pc.border}` }}>
                       {task.priority || "Medium"}
                     </span>
                     {task.deadline && (
-                      <span style={{ fontSize: "12px", color: overdue ? "#A32D2D" : "#666" }}>
+                      <span style={{ fontSize: "12px", color: overdue ? "#F85149" : "#6B7A8D" }}>
                         📅 {formatDate(task.deadline)}
                       </span>
                     )}
                     <div style={{ marginLeft: "auto" }}>
                       <select value={task.status} onChange={(e) => updateStatus(task.id, e.target.value)}
-                        style={{ padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 500, border: "none", cursor: "pointer", background: sc.bg, color: sc.text }}>
+                        style={{ padding: "5px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, border: `1px solid ${sc.border}`, cursor: "pointer", background: sc.bg, color: sc.text, outline: "none" }}>
                         <option value="pending">Pending</option>
                         <option value="completed">Completed</option>
                         <option value="failed">Failed</option>
@@ -319,8 +298,8 @@ export default function Dashboard() {
       </div>
 
       {toast && (
-        <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: "#1A5276", color: "white", padding: "12px 24px", borderRadius: "8px", fontSize: "14px", zIndex: 999 }}>
-          {toast}
+        <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: "#161B22", color: "#38D39F", padding: "12px 24px", borderRadius: "8px", fontSize: "13px", zIndex: 999, border: "1px solid rgba(56,211,159,0.3)", fontWeight: 500 }}>
+          ✓ {toast}
         </div>
       )}
     </div>
