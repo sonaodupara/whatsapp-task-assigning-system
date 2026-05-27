@@ -74,7 +74,7 @@ export async function POST(request: Request) {
   const deadlineStr = task.deadline
     ? new Date(task.deadline).toLocaleDateString("en-IN")
     : "No deadline";
-
+  console.log("SENDING TO META:", { to: assigned_to.replace("+", ""), shortId, title: task.title, priority: task.priority, deadline: deadlineStr });
   const waResult = await sendWhatsAppMessage(
     assigned_to.replace("+", ""),
     shortId,
