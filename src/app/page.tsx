@@ -176,23 +176,9 @@ export default function Home() {
       </div>
 
       <div style={{ maxWidth: "560px", margin: "0 auto", padding: "24px 16px" }}>
-        <div style={{ marginBottom: "20px" }}>
+        <div style={{ marginBottom: "24px" }}>
           <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px" }}>Send Task</h2>
-          <p style={{ fontSize: "13px", color: "#6B7A8D", margin: "0 0 16px" }}>Assign tasks to your team via WhatsApp</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-            <a href="/dashboard" style={{ padding: "12px", background: "#161B22", border: "1px solid #21262D", borderRadius: "10px", textDecoration: "none", textAlign: "center" as const }}>
-              <div style={{ fontSize: "20px", marginBottom: "4px" }}>📊</div>
-              <div style={{ fontSize: "12px", color: "#58A6FF", fontWeight: 500 }}>Dashboard</div>
-            </a>
-            <a href="/clients" style={{ padding: "12px", background: "#161B22", border: "1px solid #21262D", borderRadius: "10px", textDecoration: "none", textAlign: "center" as const }}>
-              <div style={{ fontSize: "20px", marginBottom: "4px" }}>🏢</div>
-              <div style={{ fontSize: "12px", color: "#58A6FF", fontWeight: 500 }}>Clients</div>
-            </a>
-            <a href="/categories" style={{ padding: "12px", background: "#161B22", border: "1px solid #21262D", borderRadius: "10px", textDecoration: "none", textAlign: "center" as const }}>
-              <div style={{ fontSize: "20px", marginBottom: "4px" }}>📂</div>
-              <div style={{ fontSize: "12px", color: "#58A6FF", fontWeight: 500 }}>Categories</div>
-            </a>
-          </div>
+          <p style={{ fontSize: "13px", color: "#6B7A8D", margin: 0 }}>Assign tasks to your team via WhatsApp</p>
         </div>
 
         {/* Team Members */}
