@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-async function sendWhatsAppMessage(to: string) {
+async function sendWhatsAppMessage(to: string, shortId: string, taskTitle: string, priority: string, deadline: string) {
   const phoneNumberId = process.env.META_PHONE_NUMBER_ID!;
   const token = process.env.META_WHATSAPP_TOKEN!;
 
@@ -17,7 +17,21 @@ async function sendWhatsAppMessage(to: string) {
         messaging_product: "whatsapp",
         to: to,
         type: "template",
-        template: { name: "hello_world", language: { code: "en_US" } },
+        template: {
+          name: "task_assigned",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: shortId },
+                { type: "text", text: taskTitle },
+                { type: "text", text: priority },
+                { type: "text", text: deadline }
+              ]
+            }
+          ]
+        }
       }),
     }
   );
@@ -55,10 +69,23 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ success: false, error: error.message });
 
-  const waResult = await sendWhatsAppMessage(assigned_to.replace("+", ""));
+  const task = data[0];
+  const shortId = task.id.split("-")[0].toUpperCase();
+  const deadlineStr = task.deadline
+    ? new Date(task.deadline).toLocaleDateString("en-IN")
+    : "No deadline";
+
+  const waResult = await sendWhatsAppMessage(
+    assigned_to.replace("+", ""),
+    shortId,
+    task.title,
+    task.priority || "Medium",
+    deadlineStr
+  );
+
   console.log("META RESPONSE:", JSON.stringify(waResult));
 
   if (waResult.error) return NextResponse.json({ success: false, metaError: waResult.error });
 
-  return NextResponse.json({ success: true, task: data[0] });
+  return NextResponse.json({ success: true, task });
 }
