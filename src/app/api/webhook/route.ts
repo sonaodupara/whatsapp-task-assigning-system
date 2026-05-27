@@ -67,10 +67,11 @@ export async function POST(request: Request) {
     const shortId = parts[1];
 
     if (shortId) {
+      // Match both +91... and 91... formats
       const { data: tasks } = await supabase
         .from("tasks")
         .select("id, title, assigned_to")
-        .eq("assigned_to", phoneNumber)
+        .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
         .ilike("id", `${shortId.toLowerCase()}%`);
 
       if (tasks && tasks.length > 0) {
@@ -91,12 +92,35 @@ export async function POST(request: Request) {
 
         await sendWhatsAppMessage(phoneNumber, replies[newStatus]);
 
-        // Notify employer if cannot complete
         if (newStatus === "cannot_complete") {
           await sendWhatsAppMessage(
             employerNumber,
             `⚠️ Employee could not complete task: "${tasks[0].title}". Please follow up.`
           );
+        }
+        if (newStatus === "completed") {
+          await sendWhatsAppMessage(
+            employerNumber,
+            `✅ Task completed: "${tasks[0].title}"`
+          );
+        }
+      } else {
+        // Fallback — find latest pending task for this number
+        const { data: fallbackTasks } = await supabase
+          .from("tasks")
+          .select("id, title")
+          .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (fallbackTasks && fallbackTasks.length > 0) {
+          const newStatus = status === "DONE" ? "completed" :
+            status === "PROGRESS" ? "in_progress" : "cannot_complete";
+          await supabase.from("tasks").update({ status: newStatus }).eq("id", fallbackTasks[0].id);
+          await sendWhatsAppMessage(phoneNumber, `✅ Task "${fallbackTasks[0].title}" updated!`);
+        } else {
+          await sendWhatsAppMessage(phoneNumber, `✅ Response received. Thank you!`);
         }
       }
     }
@@ -144,10 +168,14 @@ For deadlines, convert relative times like "today 5pm" or "tomorrow morning" int
       }
 
       if (!employee) {
-        await sendWhatsAppMessage(
-          employerNumber,
-          `❌ Employee "${parsed.employee_name}" not found. Please add them in the dashboard first.\n\nGo to: https://whatsapp-task-system.vercel.app`
-        );
+        // Get list of available employees to show employer
+        const empList = allEmployees?.map((e: any) => `• ${e.name}`).join("\n") || "No employees added yet";
+        
+        const errorMsg = parsed.employee_name && parsed.employee_name !== "null"
+          ? `❌ Employee "${parsed.employee_name}" not found.\n\nAvailable team members:\n${empList}\n\nPlease mention the exact name in your message.\nExample: "Tell Sona to clean the office by 5pm"`
+          : `Please mention the employee name in your message.\n\nAvailable team members:\n${empList}\n\nExample: "Tell Sona to clean the office by 5pm"`;
+
+        await sendWhatsAppMessage(employerNumber, errorMsg);
         return NextResponse.json({ status: "ok" });
       }
 
