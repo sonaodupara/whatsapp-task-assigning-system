@@ -1,23 +1,23 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function GET(request: Request) {
   const authHeader = request.headers.get("Authorization");
   const token = authHeader?.replace("Bearer ", "");
   if (!token) return NextResponse.json({ success: false, error: "Unauthorized" });
 
-  const { data: { user } } = await supabase.auth.getUser(token);
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } } }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" });
 
   const { data, error } = await supabase
     .from("employees")
     .select("*")
-    .eq("user_id", user.id)
     .order("name");
 
   if (error) return NextResponse.json({ success: false, error: error.message });
@@ -29,10 +29,17 @@ export async function POST(request: Request) {
   const token = authHeader?.replace("Bearer ", "");
   if (!token) return NextResponse.json({ success: false, error: "Unauthorized" });
 
-  const { data: { user } } = await supabase.auth.getUser(token);
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } } }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" });
 
   const { name, phone } = await request.json();
+
   const { data, error } = await supabase
     .from("employees")
     .insert([{ name, phone, user_id: user.id }])
@@ -47,7 +54,13 @@ export async function DELETE(request: Request) {
   const token = authHeader?.replace("Bearer ", "");
   if (!token) return NextResponse.json({ success: false, error: "Unauthorized" });
 
-  const { data: { user } } = await supabase.auth.getUser(token);
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } } }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" });
 
   const { id } = await request.json();
