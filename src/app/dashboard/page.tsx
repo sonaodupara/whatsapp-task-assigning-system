@@ -16,6 +16,8 @@ const PRIORITY_ORDER: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
 const statusStyles: Record<string, { bg: string; text: string; border: string }> = {
   pending:   { bg: "rgba(210,153,34,0.15)",  text: "#D29922", border: "rgba(210,153,34,0.3)" },
   completed: { bg: "rgba(56,211,159,0.15)",  text: "#38D39F", border: "rgba(56,211,159,0.3)" },
+  in_progress: { bg: "rgba(88,166,255,0.15)", text: "#58A6FF", border: "rgba(88,166,255,0.3)" },
+  cannot_complete: { bg: "rgba(248,81,73,0.15)", text: "#F85149", border: "rgba(248,81,73,0.3)" },
   failed:    { bg: "rgba(248,81,73,0.15)",   text: "#F85149", border: "rgba(248,81,73,0.3)" },
 };
 
@@ -286,7 +288,8 @@ export default function Dashboard() {
                         style={{ padding: "5px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, border: `1px solid ${sc.border}`, cursor: "pointer", background: sc.bg, color: sc.text, outline: "none" }}>
                         <option value="pending">Pending</option>
                         <option value="completed">Completed</option>
-                        <option value="failed">Failed</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="cannot_complete">Cannot Complete</option>
                       </select>
                     </div>
                   </div>

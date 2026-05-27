@@ -58,10 +58,51 @@ export async function POST(request: Request) {
     return NextResponse.json({ status: "ok" });
   }
 
-  const body = message.text?.body?.trim() || "";
-  const from = message.from; // phone number without +
-  const phoneNumber = `+${from}`;
-  const employerNumber = process.env.EMPLOYER_WHATSAPP!;
+  const from = message.from;
+const phoneNumber = `+${from}`;
+const employerNumber = process.env.EMPLOYER_WHATSAPP!;
+
+// Handle button replies
+if (message.type === "interactive" && message.interactive?.type === "button_reply") {
+  const buttonPayload = message.interactive.button_reply.id;
+  const buttonTitle = message.interactive.button_reply.title;
+
+  // Extract task ID from button payload (format: STATUS_TASKID)
+  const parts = buttonPayload.split("_");
+  const status = parts[0];
+  const shortId = parts[1];
+
+  if (shortId) {
+    const { data: tasks } = await supabase
+      .from("tasks")
+      .select("id, title")
+      .eq("assigned_to", phoneNumber)
+      .eq("status", "pending")
+      .ilike("id", `${shortId.toLowerCase()}%`);
+
+    if (tasks && tasks.length > 0) {
+      const newStatus = status === "DONE" ? "completed" : 
+                        status === "PROGRESS" ? "in_progress" : "cannot_complete";
+      
+      await supabase
+        .from("tasks")
+        .update({ status: newStatus })
+        .eq("id", tasks[0].id);
+
+      const replies: Record<string, string> = {
+        completed: `✅ Task marked as completed! Great work.`,
+        in_progress: `⏳ Task marked as in progress. Keep going!`,
+        cannot_complete: `❌ Task marked as cannot complete. Your manager has been notified.`,
+      };
+
+      await sendWhatsAppMessage(phoneNumber, replies[newStatus]);
+      return NextResponse.json({ status: "ok" });
+    }
+  }
+  return NextResponse.json({ status: "ok" });
+}
+
+const body = message.text?.body?.trim() || "";
 
   // ── EMPLOYER → assign task via WhatsApp ────────────────────────────────
   if (phoneNumber === employerNumber) {
