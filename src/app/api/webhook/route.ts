@@ -64,6 +64,36 @@ export async function POST(request: Request) {
   const empNorm = employerNumber.startsWith("+") ? employerNumber : `+${employerNumber}`;
   const isEmployer = phoneNumber === empNorm;
 
+  // Handle quick reply button (template buttons)
+if (message.type === "button") {
+  console.log("QUICK REPLY BUTTON:", JSON.stringify(message.button));
+  const buttonText = message.button?.text?.toUpperCase();
+  const newStatus =
+    buttonText === "DONE" ? "completed" :
+    buttonText === "IN PROGRESS" ? "in_progress" : "cannot_complete";
+
+  const { data: tasks } = await supabase
+    .from("tasks")
+    .select("id, title")
+    .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (tasks && tasks.length > 0) {
+    await supabase.from("tasks").update({ status: newStatus }).eq("id", tasks[0].id);
+    const replies: Record<string, string> = {
+      completed: `✅ Task "${tasks[0].title}" marked as completed! Great work.`,
+      in_progress: `⏳ Task "${tasks[0].title}" marked as in progress. Keep going!`,
+      cannot_complete: `❌ Task "${tasks[0].title}" marked as cannot complete. Manager notified.`,
+    };
+    await sendWhatsAppMessage(phoneNumber, replies[newStatus]);
+    if (newStatus === "completed") await sendWhatsAppMessage(empNorm, `✅ Task completed: "${tasks[0].title}"`);
+    if (newStatus === "cannot_complete") await sendWhatsAppMessage(empNorm, `⚠️ Cannot complete: "${tasks[0].title}"`);
+  }
+  return NextResponse.json({ status: "ok" });
+}
+
   // ── BUTTON REPLY ─────────────────────────────────────────────────────────
   if (message.type === "interactive" && message.interactive?.type === "button_reply") {
     const buttonPayload = message.interactive.button_reply.id;
