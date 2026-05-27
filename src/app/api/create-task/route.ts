@@ -18,7 +18,7 @@ async function sendWhatsAppMessage(to: string, shortId: string, taskTitle: strin
         to: to,
         type: "template",
         template: {
-          name: "task_assigned",
+          name: "task_assigned_v2",
           language: { code: "en" },
           components: [
             {
@@ -29,6 +29,24 @@ async function sendWhatsAppMessage(to: string, shortId: string, taskTitle: strin
                 { type: "text", text: priority },
                 { type: "text", text: deadline }
               ]
+            },
+            {
+              type: "button",
+              sub_type: "quick_reply",
+              index: "0",
+              parameters: [{ type: "payload", payload: `DONE_${shortId}` }]
+            },
+            {
+              type: "button",
+              sub_type: "quick_reply",
+              index: "1",
+              parameters: [{ type: "payload", payload: `PROGRESS_${shortId}` }]
+            },
+            {
+              type: "button",
+              sub_type: "quick_reply",
+              index: "2",
+              parameters: [{ type: "payload", payload: `CANNOT_${shortId}` }]
             }
           ]
         }
