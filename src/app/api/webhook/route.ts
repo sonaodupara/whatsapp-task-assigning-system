@@ -49,7 +49,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const data = await request.json();
-  const message = data?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  const value = data?.entry?.[0]?.changes?.[0]?.value;
+  const message = value?.messages?.[0];
+  console.log("WEBHOOK TYPE:", value?.statuses ? "status_update" : "message");
+  console.log("MESSAGE TYPE:", message?.type);
+  console.log("RAW VALUE:", JSON.stringify(value)?.slice(0, 500));
   if (!message) return NextResponse.json({ status: "ok" });
 
   const from = message.from; // e.g. 917025423667
