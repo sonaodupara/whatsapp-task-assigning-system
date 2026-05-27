@@ -49,11 +49,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const data = await request.json();
-  const value = data?.entry?.[0]?.changes?.[0]?.value;
-  const message = value?.messages?.[0];
-  console.log("WEBHOOK TYPE:", value?.statuses ? "status_update" : "message");
-  console.log("MESSAGE TYPE:", message?.type);
-  console.log("RAW VALUE:", JSON.stringify(value)?.slice(0, 500));
+  const message = data?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
   if (!message) return NextResponse.json({ status: "ok" });
 
   const from = message.from; // e.g. 917025423667
@@ -63,36 +59,6 @@ export async function POST(request: Request) {
   // Normalize employer number for comparison
   const empNorm = employerNumber.startsWith("+") ? employerNumber : `+${employerNumber}`;
   const isEmployer = phoneNumber === empNorm;
-
-  // Handle quick reply button (template buttons)
-if (message.type === "button") {
-  console.log("QUICK REPLY BUTTON:", JSON.stringify(message.button));
-  const buttonText = message.button?.text?.toUpperCase();
-  const newStatus =
-    buttonText === "DONE" ? "completed" :
-    buttonText === "IN PROGRESS" ? "in_progress" : "cannot_complete";
-
-  const { data: tasks } = await supabase
-    .from("tasks")
-    .select("id, title")
-    .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (tasks && tasks.length > 0) {
-    await supabase.from("tasks").update({ status: newStatus }).eq("id", tasks[0].id);
-    const replies: Record<string, string> = {
-      completed: `✅ Task "${tasks[0].title}" marked as completed! Great work.`,
-      in_progress: `⏳ Task "${tasks[0].title}" marked as in progress. Keep going!`,
-      cannot_complete: `❌ Task "${tasks[0].title}" marked as cannot complete. Manager notified.`,
-    };
-    await sendWhatsAppMessage(phoneNumber, replies[newStatus]);
-    if (newStatus === "completed") await sendWhatsAppMessage(empNorm, `✅ Task completed: "${tasks[0].title}"`);
-    if (newStatus === "cannot_complete") await sendWhatsAppMessage(empNorm, `⚠️ Cannot complete: "${tasks[0].title}"`);
-  }
-  return NextResponse.json({ status: "ok" });
-}
 
   // ── BUTTON REPLY ─────────────────────────────────────────────────────────
   if (message.type === "interactive" && message.interactive?.type === "button_reply") {
@@ -221,7 +187,7 @@ Extract task details. Return ONLY valid JSON:
         : "No deadline";
 
       await sendWhatsAppMessage(employee.phone,
-        `*New Task Assigned* 📋\n\nTask ID: ${shortId}\nTask: ${parsed.title}\nPriority: ${priorityStr}\nDeadline: ${deadlineStr}${parsed.notes ? `\nNotes: ${parsed.notes}` : ""}\n\nReply: *DONE ${shortId}* when completed.`
+        `📋 *New Task Assigned*\n\nTask: ${parsed.title}\nPriority: ${priorityStr}\nDeadline: ${deadlineStr}${parsed.notes ? `\nNotes: ${parsed.notes}` : ""}\n\nReply with:\n✅ DONE ${shortId} — mark as completed\n⏳ PROGRESS ${shortId} — mark as in progress\n❌ CANCEL ${shortId} — cannot complete`
       );
 
       await sendWhatsAppMessage(empNorm,
@@ -238,19 +204,15 @@ Extract task details. Return ONLY valid JSON:
   // ── EMPLOYEE text reply ───────────────────────────────────────────────────
   const upperBody = body.toUpperCase();
 
-  if (upperBody.startsWith("DONE")) {
+  async function updateTaskByKeyword(keyword: string, newStatus: string) {
     const shortId = upperBody.split(" ")[1];
-    const withPlus = phoneNumber;
-    const withoutPlus = from;
-
     let tasks: any[] = [];
 
     if (shortId) {
       const { data } = await supabase
         .from("tasks")
         .select("id, title")
-        .or(`assigned_to.eq.${withPlus},assigned_to.eq.${withoutPlus}`)
-        .eq("status", "pending")
+        .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
         .ilike("id", `${shortId.toLowerCase()}%`)
         .limit(1);
       tasks = data || [];
@@ -260,7 +222,7 @@ Extract task details. Return ONLY valid JSON:
       const { data } = await supabase
         .from("tasks")
         .select("id, title")
-        .or(`assigned_to.eq.${withPlus},assigned_to.eq.${withoutPlus}`)
+        .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
         .limit(1);
@@ -268,14 +230,34 @@ Extract task details. Return ONLY valid JSON:
     }
 
     if (tasks.length > 0) {
-      await supabase.from("tasks").update({ status: "completed" }).eq("id", tasks[0].id);
-      await sendWhatsAppMessage(phoneNumber, `✅ Task "${tasks[0].title}" completed! Great work.`);
-      await sendWhatsAppMessage(empNorm, `✅ ${phoneNumber} completed: "${tasks[0].title}"`);
+      await supabase.from("tasks").update({ status: newStatus }).eq("id", tasks[0].id);
+      const replies: Record<string, string> = {
+        completed: `✅ Task "${tasks[0].title}" marked as completed! Great work.`,
+        in_progress: `⏳ Task "${tasks[0].title}" marked as in progress. Keep going!`,
+        cannot_complete: `❌ Task "${tasks[0].title}" marked as cannot complete. Manager notified.`,
+      };
+      await sendWhatsAppMessage(phoneNumber, replies[newStatus]);
+      if (newStatus === "completed") await sendWhatsAppMessage(empNorm, `✅ ${phoneNumber} completed: "${tasks[0].title}"`);
+      if (newStatus === "in_progress") await sendWhatsAppMessage(empNorm, `⏳ ${phoneNumber} marked in progress: "${tasks[0].title}"`);
+      if (newStatus === "cannot_complete") await sendWhatsAppMessage(empNorm, `⚠️ ${phoneNumber} cannot complete: "${tasks[0].title}". Please follow up.`);
     }
+  }
 
+  if (upperBody.startsWith("DONE")) {
+    await updateTaskByKeyword("DONE", "completed");
     return NextResponse.json({ status: "ok" });
   }
 
-  // Unknown message from employee — silent ignore, no confusing reply
+  if (upperBody.startsWith("PROGRESS")) {
+    await updateTaskByKeyword("PROGRESS", "in_progress");
+    return NextResponse.json({ status: "ok" });
+  }
+
+  if (upperBody.startsWith("CANCEL")) {
+    await updateTaskByKeyword("CANCEL", "cannot_complete");
+    return NextResponse.json({ status: "ok" });
+  }
+
+  // Unknown message — silent ignore
   return NextResponse.json({ status: "ok" });
 }
