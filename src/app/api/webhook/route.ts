@@ -62,40 +62,37 @@ export async function POST(request: Request) {
 
   // ── BUTTON REPLY ─────────────────────────────────────────────────────────
   if (message.type === "interactive" && message.interactive?.type === "button_reply") {
-    const buttonPayload = message.interactive.button_reply.id; // e.g. DONE_DE594FA3
+    const buttonPayload = message.interactive.button_reply.id;
+    console.log("BUTTON REPLY:", buttonPayload, "FROM:", from, "PHONE:", phoneNumber);
+
     const parts = buttonPayload.split("_");
-    const btnStatus = parts[0]; // DONE, PROGRESS, CANNOT
-    const shortId = parts[1];  // DE594FA3
+    const btnStatus = parts[0];
+    const shortId = parts[1];
 
     const newStatus =
       btnStatus === "DONE" ? "completed" :
       btnStatus === "PROGRESS" ? "in_progress" : "cannot_complete";
 
-    // Find task by shortId and phone
-    const withPlus = phoneNumber;
-    const withoutPlus = from;
+    console.log("STATUS:", newStatus, "SHORTID:", shortId);
 
-    let { data: tasks } = await supabase
+    // Always use fallback — get latest pending task for this phone
+    const { data: tasks, error: taskError } = await supabase
       .from("tasks")
       .select("id, title")
-      .or(`assigned_to.eq.${withPlus},assigned_to.eq.${withoutPlus}`)
-      .ilike("id", `${shortId?.toLowerCase() || ""}%`)
+      .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
       .limit(1);
 
-    // If shortId match fails, get latest pending task
-    if (!tasks || tasks.length === 0) {
-      const { data: fallback } = await supabase
-        .from("tasks")
-        .select("id, title")
-        .or(`assigned_to.eq.${withPlus},assigned_to.eq.${withoutPlus}`)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(1);
-      tasks = fallback || [];
-    }
+    console.log("TASKS FOUND:", tasks, "ERROR:", taskError);
 
     if (tasks && tasks.length > 0) {
-      await supabase.from("tasks").update({ status: newStatus }).eq("id", tasks[0].id);
+      const { error: updateError } = await supabase
+        .from("tasks")
+        .update({ status: newStatus })
+        .eq("id", tasks[0].id);
+
+      console.log("UPDATE ERROR:", updateError);
 
       const replies: Record<string, string> = {
         completed: `✅ Task "${tasks[0].title}" marked as completed! Great work.`,
@@ -111,6 +108,7 @@ export async function POST(request: Request) {
         await sendWhatsAppMessage(empNorm, `⚠️ Cannot complete: "${tasks[0].title}". Please follow up.`);
       }
     } else {
+      console.log("NO TASKS FOUND for phone:", phoneNumber, from);
       await sendWhatsAppMessage(phoneNumber, `✅ Response received. Thank you!`);
     }
 
