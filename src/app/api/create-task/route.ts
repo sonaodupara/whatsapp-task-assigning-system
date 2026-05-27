@@ -19,7 +19,7 @@ async function sendWhatsAppMessage(to: string, shortId: string, taskTitle: strin
         type: "template",
         template: {
           name: "task_assigned",
-          language: { code: "en" },
+          language: { code: "en_US" },
           components: [
             {
               type: "body",
