@@ -12,7 +12,7 @@ type Employee = { id: string; name: string; phone: string; };
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
-  const [token, setToken] = useState("");
+  const tokenRef = useRef<string>("");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [title, setTitle] = useState("");
@@ -29,22 +29,32 @@ export default function Home() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) window.location.href = "/login";
-      else { setUser(session.user); setToken(session.access_token); }
+      if (!session) {
+        window.location.href = "/login";
+      } else {
+        setUser(session.user);
+        tokenRef.current = session.access_token;
+        fetchEmployees(session.access_token);
+      }
     });
+
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SR) {
       setVoiceSupported(true);
       const r = new SR();
-      r.continuous = false; r.interimResults = true; r.lang = "en-IN";
-      r.onresult = (e: any) => { let t = ""; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; setAiMessage(t); };
+      r.continuous = false;
+      r.interimResults = true;
+      r.lang = "en-IN";
+      r.onresult = (e: any) => {
+        let t = "";
+        for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+        setAiMessage(t);
+      };
       r.onend = () => setIsListening(false);
       r.onerror = () => setIsListening(false);
       recognitionRef.current = r;
     }
   }, []);
-
-  useEffect(() => { if (token) fetchEmployees(); }, [token]);
 
   const toggleVoice = () => {
     if (!recognitionRef.current) return;
@@ -52,20 +62,26 @@ export default function Home() {
     else { setAiMessage(""); recognitionRef.current.start(); setIsListening(true); }
   };
 
-  const fetchEmployees = async () => {
-    const res = await fetch("/api/employees", { headers: { Authorization: `Bearer ${token}` } });
+  const fetchEmployees = async (token: string) => {
+    const res = await fetch("/api/employees", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     const data = await res.json();
     if (data.success) setEmployees(data.employees);
   };
 
   const addEmployee = async () => {
+    if (!newName.trim() || !newPhone.trim()) return;
     const res = await fetch("/api/employees", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
       body: JSON.stringify({ name: newName, phone: newPhone }),
     });
     const data = await res.json();
-    if (data.success) { setNewName(""); setNewPhone(""); setShowAddEmployee(false); fetchEmployees(); }
+    if (data.success) {
+      setNewName(""); setNewPhone(""); setShowAddEmployee(false);
+      fetchEmployees(tokenRef.current);
+    }
   };
 
   const parseWithAI = async () => {
@@ -81,23 +97,28 @@ export default function Home() {
       const match = employees.find((e) => aiMessage.toLowerCase().includes(e.name.toLowerCase()));
       if (match) setSelectedEmployee(match);
       setMessage("AI parsed the task. Review and send."); setMessageType("success");
-    } else { setMessage("AI could not parse. Fill manually."); setMessageType("error"); }
+    } else {
+      setMessage("AI could not parse. Fill manually."); setMessageType("error");
+    }
     setLoading(false);
   };
 
   const sendTask = async () => {
     if (!selectedEmployee) { setMessage("Please select an employee."); setMessageType("error"); return; }
+    if (!title.trim()) { setMessage("Please enter a task title."); setMessageType("error"); return; }
     setLoading(true);
     const res = await fetch("/api/create-task", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
       body: JSON.stringify({ title, assigned_to: selectedEmployee.phone }),
     });
     const data = await res.json();
     if (data.success) {
       setMessage(`✓ Task sent to ${selectedEmployee.name}`); setMessageType("success");
       setTitle(""); setSelectedEmployee(null); setAiMessage("");
-    } else { setMessage("Error: " + data.error); setMessageType("error"); }
+    } else {
+      setMessage("Error: " + data.error); setMessageType("error");
+    }
     setLoading(false);
   };
 
@@ -118,7 +139,7 @@ export default function Home() {
           <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #1A5276, #2E86C1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>💬</div>
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#F0F6FF" }}>TaskSend</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <a href="/dashboard" style={{ padding: "7px 14px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "13px", border: "1px solid #30363D", fontWeight: 500 }}>
             📊 Dashboard
           </a>
@@ -149,9 +170,9 @@ export default function Home() {
           {showAddEmployee && (
             <div style={{ display: "flex", gap: "8px", marginBottom: "14px", flexWrap: "wrap" }}>
               <input placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)}
-                style={{ flex: 1, padding: "9px 12px", fontSize: "13px", background: "#0D1117", border: "1px solid #30363D", borderRadius: "8px", color: "#F0F6FF", minWidth: "100px", outline: "none" }} />
+                style={{ flex: 1, padding: "9px 12px", fontSize: "13px", background: "#0D1117", border: "1px solid #30363D", borderRadius: "8px", color: "#F0F6FF", minWidth: "100px", outline: "none", boxSizing: "border-box" }} />
               <input placeholder="+91..." value={newPhone} onChange={(e) => setNewPhone(e.target.value)}
-                style={{ flex: 1, padding: "9px 12px", fontSize: "13px", background: "#0D1117", border: "1px solid #30363D", borderRadius: "8px", color: "#F0F6FF", minWidth: "100px", outline: "none" }} />
+                style={{ flex: 1, padding: "9px 12px", fontSize: "13px", background: "#0D1117", border: "1px solid #30363D", borderRadius: "8px", color: "#F0F6FF", minWidth: "100px", outline: "none", boxSizing: "border-box" }} />
               <button onClick={addEmployee}
                 style={{ padding: "9px 16px", background: "#238636", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: 500 }}>
                 Save
@@ -184,40 +205,23 @@ export default function Home() {
         {/* AI Input */}
         <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "18px", marginBottom: "16px" }}>
           <span style={{ fontSize: "13px", fontWeight: 600, color: "#8B949E", letterSpacing: "0.05em", display: "block", marginBottom: "12px" }}>AI TASK INPUT</span>
-
           <div style={{ position: "relative", marginBottom: "12px" }}>
             <textarea
               placeholder={isListening ? "🎤 Listening... speak now" : "e.g. Tell John to submit the report by 5pm"}
               value={aiMessage} onChange={(e) => setAiMessage(e.target.value)}
-              style={{
-                width: "100%", padding: "11px 48px 11px 14px", fontSize: "14px", height: "80px",
-                boxSizing: "border-box", resize: "none", outline: "none",
-                background: "#0D1117", border: isListening ? "1px solid #E24B4A" : "1px solid #30363D",
-                borderRadius: "8px", color: "#F0F6FF", fontFamily: "'Segoe UI', sans-serif",
-              }}
+              style={{ width: "100%", padding: "11px 48px 11px 14px", fontSize: "14px", height: "80px", boxSizing: "border-box", resize: "none", outline: "none", background: "#0D1117", border: isListening ? "1px solid #E24B4A" : "1px solid #30363D", borderRadius: "8px", color: "#F0F6FF", fontFamily: "'Segoe UI', sans-serif" }}
             />
             {voiceSupported && (
               <button onClick={toggleVoice}
-                style={{
-                  position: "absolute", top: "10px", right: "10px",
-                  width: "32px", height: "32px", borderRadius: "50%", border: "none", cursor: "pointer",
-                  background: isListening ? "#E24B4A" : "#21262D", color: isListening ? "white" : "#58A6FF",
-                  fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
+                style={{ position: "absolute", top: "10px", right: "10px", width: "32px", height: "32px", borderRadius: "50%", border: "none", cursor: "pointer", background: isListening ? "#E24B4A" : "#21262D", color: isListening ? "white" : "#58A6FF", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {isListening ? "⏹" : "🎤"}
               </button>
             )}
           </div>
-
           {isListening && <p style={{ margin: "0 0 10px", fontSize: "12px", color: "#E24B4A" }}>🔴 Recording… tap ⏹ to stop</p>}
-
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={parseWithAI} disabled={loading || !aiMessage.trim()}
-              style={{
-                padding: "9px 20px", background: aiMessage.trim() ? "linear-gradient(135deg, #1A5276, #2E86C1)" : "#21262D",
-                color: aiMessage.trim() ? "white" : "#484F58", border: "none", borderRadius: "8px",
-                fontSize: "13px", cursor: aiMessage.trim() ? "pointer" : "not-allowed", fontWeight: 500,
-              }}>
+              style={{ padding: "9px 20px", background: aiMessage.trim() ? "linear-gradient(135deg, #1A5276, #2E86C1)" : "#21262D", color: aiMessage.trim() ? "white" : "#484F58", border: "none", borderRadius: "8px", fontSize: "13px", cursor: aiMessage.trim() ? "pointer" : "not-allowed", fontWeight: 500 }}>
               {loading ? "Parsing..." : "🤖 Parse with AI"}
             </button>
             {aiMessage && (
@@ -234,26 +238,14 @@ export default function Home() {
           <span style={{ fontSize: "13px", fontWeight: 600, color: "#8B949E", letterSpacing: "0.05em", display: "block", marginBottom: "12px" }}>TASK DETAILS</span>
           <input placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)}
             style={{ width: "100%", padding: "11px 14px", fontSize: "14px", marginBottom: "12px", boxSizing: "border-box", background: "#0D1117", border: "1px solid #30363D", borderRadius: "8px", color: "#F0F6FF", outline: "none" }} />
-          <button onClick={sendTask} disabled={loading || !selectedEmployee || !title.trim()}
-            style={{
-              width: "100%", padding: "13px",
-              background: selectedEmployee && title.trim() ? "linear-gradient(135deg, #1A5276, #2E86C1)" : "#21262D",
-              color: selectedEmployee && title.trim() ? "white" : "#484F58",
-              border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 600,
-              cursor: selectedEmployee && title.trim() ? "pointer" : "not-allowed",
-              boxShadow: selectedEmployee && title.trim() ? "0 4px 16px rgba(46,134,193,0.3)" : "none",
-            }}>
+          <button onClick={sendTask} disabled={loading}
+            style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg, #1A5276, #2E86C1)", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(46,134,193,0.3)" }}>
             {loading ? "Sending..." : `💬 Send${selectedEmployee ? ` to ${selectedEmployee.name}` : " Task"}`}
           </button>
         </div>
 
         {message && (
-          <div style={{
-            padding: "12px 16px", borderRadius: "8px", fontSize: "13px", fontWeight: 500,
-            background: messageType === "success" ? "rgba(56,211,159,0.1)" : "rgba(248,81,73,0.1)",
-            border: messageType === "success" ? "1px solid rgba(56,211,159,0.3)" : "1px solid rgba(248,81,73,0.3)",
-            color: messageType === "success" ? "#38D39F" : "#F85149",
-          }}>
+          <div style={{ padding: "12px 16px", borderRadius: "8px", fontSize: "13px", fontWeight: 500, background: messageType === "success" ? "rgba(56,211,159,0.1)" : "rgba(248,81,73,0.1)", border: messageType === "success" ? "1px solid rgba(56,211,159,0.3)" : "1px solid rgba(248,81,73,0.3)", color: messageType === "success" ? "#38D39F" : "#F85149" }}>
             {message}
           </div>
         )}
