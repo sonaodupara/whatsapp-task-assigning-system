@@ -276,6 +276,7 @@ export default function Dashboard() {
         </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <a href="/" style={{ padding: "7px 12px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "12px", border: "1px solid #30363D" }}>← Send</a>
+          <a href="/teams" style={{ padding: "7px 12px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "12px", border: "1px solid #30363D" }}>👥 Teams</a>
           <a href="/clients" style={{ padding: "7px 12px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "12px", border: "1px solid #30363D" }}>🏢 Clients</a>
           <a href="/categories" style={{ padding: "7px 12px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "12px", border: "1px solid #30363D" }}>📂 Categories</a>
           <button onClick={refreshTasks} style={{ padding: "7px 12px", background: "#21262D", color: "#8B949E", border: "1px solid #30363D", borderRadius: "8px", fontSize: "12px", cursor: "pointer" }}>

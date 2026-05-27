@@ -132,6 +132,7 @@ export default function ClientsPage() {
         </div>
         <div style={{ display: "flex", gap: "8px" }}>
           <a href="/" style={{ padding: "7px 14px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "13px", border: "1px solid #30363D" }}>← Send</a>
+          <a href="/teams" style={{ padding: "7px 12px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "12px", border: "1px solid #30363D" }}>👥 Teams</a>
           <a href="/dashboard" style={{ padding: "7px 14px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "13px", border: "1px solid #30363D" }}>📊 Dashboard</a>
         </div>
       </div>
