@@ -22,18 +22,31 @@ async function sendWhatsAppMessage(to: string, body: string) {
   });
 }
 
-// Find tasks by phone — handles both +91... and 91... formats
-async function findTasksByPhone(phone: string, filters: any = {}) {
-  const withPlus = phone.startsWith("+") ? phone : `+${phone}`;
-  const withoutPlus = phone.startsWith("+") ? phone.slice(1) : phone;
+async function updateTaskStatus(phoneNumber: string, from: string, newStatus: string, shortId?: string) {
+  let tasks: any[] = [];
 
-  const query = supabase.from("tasks").select("id, title, assigned_to");
-  Object.entries(filters).forEach(([key, val]) => query.eq(key, val));
+  if (shortId) {
+    const { data } = await supabase
+      .from("tasks")
+      .select("id, title")
+      .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
+      .ilike("id", `${shortId.toLowerCase()}%`)
+      .limit(1);
+    tasks = data || [];
+  }
 
-  const { data } = await query.or(
-    `assigned_to.eq.${withPlus},assigned_to.eq.${withoutPlus}`
-  );
-  return data || [];
+  if (tasks.length === 0) {
+    const { data } = await supabase
+      .from("tasks")
+      .select("id, title")
+      .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    tasks = data || [];
+  }
+
+  return tasks;
 }
 
 export async function GET(request: Request) {
@@ -49,69 +62,59 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const data = await request.json();
-  const message = data?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+
+  const value = data?.entry?.[0]?.changes?.[0]?.value;
+  const message = value?.messages?.[0];
+
+  console.log("RAW TYPE:", message?.type, "FROM:", message?.from);
+
   if (!message) return NextResponse.json({ status: "ok" });
 
-  const from = message.from; // e.g. 917025423667
-  const phoneNumber = `+${from}`; // e.g. +917025423667
+  const from = message.from;
+  const phoneNumber = `+${from}`;
   const employerNumber = process.env.EMPLOYER_WHATSAPP!;
-
-  // Normalize employer number for comparison
   const empNorm = employerNumber.startsWith("+") ? employerNumber : `+${employerNumber}`;
   const isEmployer = phoneNumber === empNorm;
 
-  // ── BUTTON REPLY ─────────────────────────────────────────────────────────
-  if (message.type === "interactive" && message.interactive?.type === "button_reply") {
-    const buttonPayload = message.interactive.button_reply.id;
-    console.log("BUTTON REPLY:", buttonPayload, "FROM:", from, "PHONE:", phoneNumber);
-
-    const parts = buttonPayload.split("_");
-    const btnStatus = parts[0];
-    const shortId = parts[1];
-
-    const newStatus =
-      btnStatus === "DONE" ? "completed" :
-      btnStatus === "PROGRESS" ? "in_progress" : "cannot_complete";
-
-    console.log("STATUS:", newStatus, "SHORTID:", shortId);
-
-    // Always use fallback — get latest pending task for this phone
-    const { data: tasks, error: taskError } = await supabase
-      .from("tasks")
-      .select("id, title")
-      .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
-      .eq("status", "pending")
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    console.log("TASKS FOUND:", tasks, "ERROR:", taskError);
-
-    if (tasks && tasks.length > 0) {
-      const { error: updateError } = await supabase
-        .from("tasks")
-        .update({ status: newStatus })
-        .eq("id", tasks[0].id);
-
-      console.log("UPDATE ERROR:", updateError);
-
+  const handleStatusUpdate = async (newStatus: string, shortId?: string) => {
+    const tasks = await updateTaskStatus(phoneNumber, from, newStatus, shortId);
+    if (tasks.length > 0) {
+      await supabase.from("tasks").update({ status: newStatus }).eq("id", tasks[0].id);
       const replies: Record<string, string> = {
         completed: `✅ Task "${tasks[0].title}" marked as completed! Great work.`,
         in_progress: `⏳ Task "${tasks[0].title}" marked as in progress. Keep going!`,
         cannot_complete: `❌ Task "${tasks[0].title}" marked as cannot complete. Manager notified.`,
       };
       await sendWhatsAppMessage(phoneNumber, replies[newStatus]);
-
-      if (newStatus === "completed") {
-        await sendWhatsAppMessage(empNorm, `✅ Task completed: "${tasks[0].title}"`);
-      }
-      if (newStatus === "cannot_complete") {
-        await sendWhatsAppMessage(empNorm, `⚠️ Cannot complete: "${tasks[0].title}". Please follow up.`);
-      }
+      if (newStatus === "completed") await sendWhatsAppMessage(empNorm, `✅ Task completed: "${tasks[0].title}"`);
+      if (newStatus === "cannot_complete") await sendWhatsAppMessage(empNorm, `⚠️ Cannot complete: "${tasks[0].title}". Please follow up.`);
+      if (newStatus === "in_progress") await sendWhatsAppMessage(empNorm, `⏳ In progress: "${tasks[0].title}"`);
     } else {
-      console.log("NO TASKS FOUND for phone:", phoneNumber, from);
       await sendWhatsAppMessage(phoneNumber, `✅ Response received. Thank you!`);
     }
+  };
 
+  // ── TYPE 1: Interactive button reply ─────────────────────────────────────
+  if (message.type === "interactive" && message.interactive?.type === "button_reply") {
+    const payload = message.interactive.button_reply.id;
+    console.log("INTERACTIVE BUTTON:", payload);
+    const parts = payload.split("_");
+    const btnStatus = parts[0];
+    const shortId = parts[1];
+    const newStatus = btnStatus === "DONE" ? "completed" : btnStatus === "PROGRESS" ? "in_progress" : "cannot_complete";
+    await handleStatusUpdate(newStatus, shortId);
+    return NextResponse.json({ status: "ok" });
+  }
+
+  // ── TYPE 2: Quick reply button (template button tap) ─────────────────────
+  if (message.type === "button") {
+    const buttonText = message.button?.text?.toUpperCase() || "";
+    const buttonPayload = message.button?.payload?.toUpperCase() || "";
+    console.log("QUICK REPLY BUTTON text:", buttonText, "payload:", buttonPayload);
+
+    const combined = buttonPayload || buttonText;
+    const newStatus = combined.includes("DONE") ? "completed" : combined.includes("PROGRESS") ? "in_progress" : "cannot_complete";
+    await handleStatusUpdate(newStatus);
     return NextResponse.json({ status: "ok" });
   }
 
@@ -119,9 +122,8 @@ export async function POST(request: Request) {
 
   // ── EMPLOYER sending task via WhatsApp ───────────────────────────────────
   if (isEmployer) {
-    // Check if employer is replying DONE to their own task confirmation — ignore
     const upperBody = body.toUpperCase();
-    if (upperBody === "DONE" || upperBody.startsWith("DONE ")) {
+    if (upperBody.startsWith("DONE") || upperBody.startsWith("PROGRESS") || upperBody.startsWith("CANCEL")) {
       return NextResponse.json({ status: "ok" });
     }
 
@@ -204,60 +206,23 @@ Extract task details. Return ONLY valid JSON:
   // ── EMPLOYEE text reply ───────────────────────────────────────────────────
   const upperBody = body.toUpperCase();
 
-  async function updateTaskByKeyword(keyword: string, newStatus: string) {
-    const shortId = upperBody.split(" ")[1];
-    let tasks: any[] = [];
-
-    if (shortId) {
-      const { data } = await supabase
-        .from("tasks")
-        .select("id, title")
-        .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
-        .ilike("id", `${shortId.toLowerCase()}%`)
-        .limit(1);
-      tasks = data || [];
-    }
-
-    if (tasks.length === 0) {
-      const { data } = await supabase
-        .from("tasks")
-        .select("id, title")
-        .or(`assigned_to.eq.${phoneNumber},assigned_to.eq.${from}`)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(1);
-      tasks = data || [];
-    }
-
-    if (tasks.length > 0) {
-      await supabase.from("tasks").update({ status: newStatus }).eq("id", tasks[0].id);
-      const replies: Record<string, string> = {
-        completed: `✅ Task "${tasks[0].title}" marked as completed! Great work.`,
-        in_progress: `⏳ Task "${tasks[0].title}" marked as in progress. Keep going!`,
-        cannot_complete: `❌ Task "${tasks[0].title}" marked as cannot complete. Manager notified.`,
-      };
-      await sendWhatsAppMessage(phoneNumber, replies[newStatus]);
-      if (newStatus === "completed") await sendWhatsAppMessage(empNorm, `✅ ${phoneNumber} completed: "${tasks[0].title}"`);
-      if (newStatus === "in_progress") await sendWhatsAppMessage(empNorm, `⏳ ${phoneNumber} marked in progress: "${tasks[0].title}"`);
-      if (newStatus === "cannot_complete") await sendWhatsAppMessage(empNorm, `⚠️ ${phoneNumber} cannot complete: "${tasks[0].title}". Please follow up.`);
-    }
-  }
-
   if (upperBody.startsWith("DONE")) {
-    await updateTaskByKeyword("DONE", "completed");
+    const shortId = upperBody.split(" ")[1];
+    await handleStatusUpdate("completed", shortId);
     return NextResponse.json({ status: "ok" });
   }
 
   if (upperBody.startsWith("PROGRESS")) {
-    await updateTaskByKeyword("PROGRESS", "in_progress");
+    const shortId = upperBody.split(" ")[1];
+    await handleStatusUpdate("in_progress", shortId);
     return NextResponse.json({ status: "ok" });
   }
 
   if (upperBody.startsWith("CANCEL")) {
-    await updateTaskByKeyword("CANCEL", "cannot_complete");
+    const shortId = upperBody.split(" ")[1];
+    await handleStatusUpdate("cannot_complete", shortId);
     return NextResponse.json({ status: "ok" });
   }
 
-  // Unknown message — silent ignore
   return NextResponse.json({ status: "ok" });
 }
