@@ -19,6 +19,7 @@ const navItems = [
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const hideNav = pathname === '/login';
 
   return (
     <div style={{ 
@@ -28,6 +29,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       color: '#F0F6FF' 
     }}>
       {/* Sticky Header */}
+      {!hideNav && (
       <header style={{
         position: 'sticky',
         top: 0,
@@ -115,6 +117,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
+      )}
 
       {children}
     </div>

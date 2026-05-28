@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { BarChart2, CheckCircle, AlertTriangle, RefreshCw, Download, Search, LogOut, Send, Users, Building2, FolderOpen, Layers } from "lucide-react";
+import { BarChart2, CheckCircle, AlertTriangle, RefreshCw, Download, Search, Building2, FolderOpen } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -230,8 +230,6 @@ export default function Dashboard() {
     overdue: tasks.filter(t => isOverdue(t.deadline, t.status)).length,
   };
 
-  const signOut = async () => { await supabase.auth.signOut(); window.location.href = "/login"; };
-
   const selectStyle = {
     padding: "8px 12px", fontSize: "13px",
     background: "#0D1117", border: "1px solid #30363D",
@@ -248,38 +246,6 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#0D1117", fontFamily: "'Segoe UI', sans-serif", color: "#F0F6FF" }}>
-
-      {/* Header */}
-      <div style={{ background: "#161B22", borderBottom: "1px solid #21262D", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, height: "56px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #1A5276, #2E86C1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Send size={16} color="white" />
-          </div>
-          <span style={{ fontSize: "15px", fontWeight: 700, color: "#F0F6FF" }}>TaskSend</span>
-          <div style={{ width: "1px", height: "20px", background: "#21262D", margin: "0 4px" }} />
-          <span style={{ fontSize: "13px", color: "#58A6FF", fontWeight: 500 }}>Dashboard</span>
-        </div>
-        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-          {[
-            { href: "/", icon: Send, label: "Send" },
-            { href: "/clients", icon: Building2, label: "Clients" },
-            { href: "/categories", icon: FolderOpen, label: "Categories" },
-            { href: "/teams", icon: Users, label: "Teams" },
-            { href: "/bulk", icon: Layers, label: "Bulk" },
-          ].map(({ href, icon: Icon, label }) => (
-            <a key={href} href={href} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 10px", background: "#21262D", color: "#8B949E", borderRadius: "7px", textDecoration: "none", fontSize: "12px", border: "1px solid #30363D" }}>
-              <Icon size={13} />{label}
-            </a>
-          ))}
-          <button onClick={refreshTasks} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 10px", background: "#21262D", color: "#8B949E", border: "1px solid #30363D", borderRadius: "7px", fontSize: "12px", cursor: "pointer" }}>
-            <RefreshCw size={13} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
-          </button>
-          <button onClick={signOut} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 10px", background: "transparent", color: "#6B7A8D", border: "1px solid #30363D", borderRadius: "7px", fontSize: "12px", cursor: "pointer" }}>
-            <LogOut size={13} />
-          </button>
-        </div>
-      </div>
-
       <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
 
         {/* Stats */}
@@ -315,6 +281,10 @@ export default function Dashboard() {
               <option value="client">Group by Client</option>
               <option value="status">Group by Status</option>
             </select>
+            <button onClick={refreshTasks}
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#21262D", color: "#8B949E", border: "1px solid #30363D", borderRadius: "8px", fontSize: "13px", cursor: "pointer" }}>
+              <RefreshCw size={14} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+            </button>
             <button onClick={() => exportCSV(filtered)}
               style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#238636", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}>
               <Download size={14} /> Export CSV
