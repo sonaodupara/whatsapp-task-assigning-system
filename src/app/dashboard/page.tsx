@@ -84,10 +84,15 @@ function exportCSV(tasks: Task[]) {
     formatDate(t.created_at),
   ]);
   const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = "tasks.csv"; a.click();
+
+  if (navigator.share) {
+    navigator.share({ title: 'Tasks Export', text: csv });
+  } else {
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "tasks.csv"; a.click();
+  }
 }
 
 export default function Dashboard() {
