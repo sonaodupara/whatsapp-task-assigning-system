@@ -84,10 +84,10 @@ function exportCSV(tasks: Task[]) {
     formatDate(t.created_at),
   ]);
   const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-  
-  // Use data URI — works in Android WebView
-  const dataUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
-  window.open(dataUri, "_blank");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "tasks.csv"; a.click();
 }
 
 export default function Dashboard() {
