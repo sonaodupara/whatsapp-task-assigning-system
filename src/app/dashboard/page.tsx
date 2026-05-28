@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { BarChart2, Users, Calendar, CheckCircle, AlertTriangle, Download, RefreshCw } from "lucide-react";
+import { BarChart2, AlertTriangle, CheckCircle, Download, RefreshCw } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -71,6 +71,25 @@ function isOverdue(deadline: string | null, status: string) {
   return new Date(deadline) < new Date();
 }
 
+function exportCSV(tasks: Task[]) {
+  const headers = ["Title", "Client", "Category", "Assigned To", "Status", "Priority", "Deadline", "Created"];
+  const rows = tasks.map(t => [
+    `"${t.title}"`,
+    `"${t.client_name || ""}"`,
+    `"${t.category_name || ""}"`,
+    `"${t.assigned_to}"`,
+    t.status,
+    t.priority || "Medium",
+    t.deadline ? formatDate(t.deadline) : "",
+    formatDate(t.created_at),
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "tasks.csv"; a.click();
+}
+
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -135,7 +154,7 @@ export default function Dashboard() {
     setRefreshing(true);
     if (user) await fetchTasks(user.id);
     setRefreshing(false);
-    setToast("Dashboard refreshed");
+    setToast("Refreshed");
     setTimeout(() => setToast(""), 2000);
   }
 
@@ -164,25 +183,6 @@ export default function Dashboard() {
     return categories.find(c => c.id === categoryId)?.color || "#2E86C1";
   }
 
-  function exportCSV(tasks: Task[]) {
-    const headers = ["Title", "Client", "Category", "Assigned To", "Status", "Priority", "Deadline", "Created"];
-    const rows = tasks.map(t => [
-      `"${t.title}"`,
-      `"${t.client_name || ""}"`,
-      `"${t.category_name || ""}"`,
-      `"${t.assigned_to}"`,
-      t.status,
-      t.priority || "Medium",
-      t.deadline ? formatDate(t.deadline) : "",
-      formatDate(t.created_at),
-    ]);
-    const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "tasks.csv"; a.click();
-  }
-
   const filtered = tasks
     .filter(t => {
       if (filterStatus !== "all" && t.status !== filterStatus) return false;
@@ -203,48 +203,49 @@ export default function Dashboard() {
     overdue: tasks.filter(t => isOverdue(t.deadline, t.status)).length,
   };
 
-  const groups = (() => {
+  function getGroups() {
     if (groupBy === "none") return [{ label: null, tasks: filtered }];
-    // ... (your original grouping logic)
-    const grouped: Record<string, Task[]> = {};
+    const groups: Record<string, Task[]> = {};
     filtered.forEach(t => {
       let key = "Other";
       if (groupBy === "category") key = t.category_name || "No Category";
       if (groupBy === "client") key = t.client_name || "No Client";
       if (groupBy === "status") key = t.status;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(t);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(t);
     });
-    return Object.entries(grouped).map(([label, tasks]) => ({ label, tasks }));
-  })();
+    return Object.entries(groups).map(([label, tasks]) => ({ label, tasks }));
+  }
+
+  const groups = getGroups();
 
   const inputStyle = {
-    padding: "10px 12px",
-    background: "#0D1117",
-    border: "1px solid #30363D",
-    borderRadius: "8px",
-    color: "#F0F6FF",
-    outline: "none",
-    fontSize: "14px"
+    padding: "10px 12px", fontSize: "14px",
+    background: "#0D1117", border: "1px solid #30363D",
+    borderRadius: "8px", color: "#F0F6FF", outline: "none",
   };
 
-  if (!user) return <div style={{ minHeight: "100vh", background: "#0D1117", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading...</div>;
+  if (!user) return (
+    <div style={{ minHeight: "100vh", background: "#0D1117", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ color: "#58A6FF" }}>Loading...</div>
+    </div>
+  );
 
   return (
-    <div style={{ padding: "32px 24px", maxWidth: "1280px", margin: "0 auto", fontFamily: "'Segoe UI', sans-serif" }}>
+    <div style={{ padding: "32px 24px", maxWidth: "1280px", margin: "0 auto" }}>
       <div style={{ marginBottom: "32px" }}>
-        <h1 style={{ fontSize: "32px", fontWeight: 700 }}>Dashboard</h1>
-        <p style={{ color: "#8B949E" }}>Real-time overview of your operations</p>
+        <h1 style={{ fontSize: "32px", fontWeight: 700, margin: 0 }}>Dashboard</h1>
+        <p style={{ color: "#8B949E", marginTop: "8px" }}>Welcome back! Here's what's happening.</p>
       </div>
 
-      {/* Stats Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "20px", marginBottom: "40px" }}>
+      {/* Stats Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "40px" }}>
         {[
-          { label: "TOTAL TASKS", value: stats.total, color: "#58A6FF", icon: BarChart2 },
-          { label: "COMPLETED", value: stats.completed, color: "#38D39F", icon: CheckCircle },
-          { label: "PENDING", value: stats.pending, color: "#D29922", icon: AlertTriangle },
-          { label: "OVERDUE", value: stats.overdue, color: "#F85149", icon: AlertTriangle },
-        ].map((stat, i) => (
+          { label: "TOTAL", value: stats.total, color: "#58A6FF" },
+          { label: "COMPLETED", value: stats.completed, color: "#38D39F" },
+          { label: "PENDING", value: stats.pending, color: "#D29922" },
+          { label: "OVERDUE", value: stats.overdue, color: "#F85149" },
+        ].map((s, i) => (
           <div key={i} style={{
             background: "#161B22",
             border: "1px solid #21262D",
@@ -252,152 +253,137 @@ export default function Dashboard() {
             padding: "24px",
             boxShadow: "0 1px 3px rgba(0,0,0,0.3)"
           }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <stat.icon size={32} style={{ color: stat.color }} />
-              <div style={{ fontSize: "13px", fontWeight: 600, color: "#8B949E" }}>{stat.label}</div>
-            </div>
-            <div style={{ fontSize: "48px", fontWeight: 700, marginTop: "16px" }}>{stat.value}</div>
+            <div style={{ fontSize: "13px", color: "#8B949E", fontWeight: 600 }}>{s.label}</div>
+            <div style={{ fontSize: "42px", fontWeight: 700, marginTop: "8px", color: s.color }}>{s.value}</div>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div style={{
-        background: "#161B22",
-        border: "1px solid #21262D",
-        borderRadius: "12px",
-        padding: "20px",
-        marginBottom: "24px"
-      }}>
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "16px" }}>
-          <input
-            placeholder="Search tasks..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ flex: 1, ...inputStyle }}
+      <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <input 
+            placeholder="Search tasks or clients..." 
+            value={search} 
+            onChange={e => setSearch(e.target.value)}
+            style={{ flex: 1, minWidth: "200px", ...inputStyle }}
           />
-          <button
-            onClick={refreshTasks}
-            style={{ padding: "10px 20px", background: "#21262D", border: "1px solid #30363D", borderRadius: "8px", color: "#58A6FF", display: "flex", alignItems: "center", gap: "8px" }}
-          >
-            <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
-            Refresh
+          <select value={groupBy} onChange={e => setGroupBy(e.target.value)} style={inputStyle}>
+            <option value="none">No Grouping</option>
+            <option value="category">Group by Category</option>
+            <option value="client">Group by Client</option>
+            <option value="status">Group by Status</option>
+          </select>
+          <button onClick={refreshTasks} style={{ padding: "10px 20px", background: "#21262D", border: "1px solid #30363D", borderRadius: "8px", color: "#58A6FF", display: "flex", alignItems: "center", gap: "8px" }}>
+            <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} /> Refresh
           </button>
           <button onClick={() => exportCSV(filtered)} style={{ padding: "10px 20px", background: "#238636", color: "white", border: "none", borderRadius: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
             <Download size={18} /> Export CSV
           </button>
         </div>
-
-        {/* More filters can be added here as needed */}
       </div>
 
-      {/* Tasks */}
+      {/* Tasks List */}
       <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "24px" }}>
-        <h2 style={{ fontSize: "20px", fontWeight: 600, marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
-          <BarChart2 size={22} /> All Tasks
-        </h2>
-
         {loading ? (
-          <div style={{ textAlign: "center", padding: "60px", color: "#8B949E" }}>Loading tasks...</div>
+          <div style={{ textAlign: "center", padding: "80px", color: "#8B949E" }}>Loading tasks...</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px", color: "#484F58" }}>No tasks found</div>
         ) : (
           groups.map((group, gi) => (
-            <div key={gi} style={{ marginBottom: "32px" }}>
+            <div key={gi}>
               {group.label && (
-                <div style={{ fontSize: "15px", color: "#8B949E", marginBottom: "12px", fontWeight: 600 }}>
+                <div style={{ fontSize: "15px", fontWeight: 600, color: "#8B949E", margin: "24px 0 12px", display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ height: "1px", flex: 1, background: "#21262D" }}></div>
                   {group.label} ({group.tasks.length})
+                  <div style={{ height: "1px", flex: 1, background: "#21262D" }}></div>
                 </div>
               )}
-              {group.tasks.map(task => {
-                const empName = getEmpName(task.assigned_to);
-                const col = getAvatarColor(empName);
-                const sc = statusStyles[task.status] || statusStyles.pending;
-                const pc = priorityStyles[task.priority || "Medium"];
-                const overdue = isOverdue(task.deadline, task.status);
-                const catColor = getCategoryColor(task.category_id);
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {group.tasks.map(task => {
+                  const empName = getEmpName(task.assigned_to);
+                  const col = getAvatarColor(empName);
+                  const sc = statusStyles[task.status] || statusStyles.pending;
+                  const pc = priorityStyles[task.priority || "Medium"] || priorityStyles.Medium;
+                  const overdue = isOverdue(task.deadline, task.status);
+                  const catColor = getCategoryColor(task.category_id);
 
-                return (
-                  <div key={task.id} style={{
-                    background: "#0D1117",
-                    border: `1px solid ${overdue ? "#F85149" : "#21262D"}`,
-                    borderLeft: `4px solid ${catColor}`,
-                    borderRadius: "10px",
-                    padding: "18px",
-                    marginBottom: "12px"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: "15px" }}>
-                          {overdue && <AlertTriangle size={16} style={{ color: "#F85149", display: "inline", marginRight: "6px" }} />}
-                          {task.title}
+                  return (
+                    <div key={task.id} style={{
+                      background: "#0D1117",
+                      border: `1px solid ${overdue ? "rgba(248,81,73,0.5)" : "#21262D"}`,
+                      borderLeft: `4px solid ${catColor}`,
+                      borderRadius: "12px",
+                      padding: "20px"
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: "15px", marginBottom: "6px" }}>
+                            {overdue && <span style={{ color: "#F85149" }}>⚠️ </span>}
+                            {task.title}
+                          </div>
+                          <div style={{ display: "flex", gap: "12px", fontSize: "13px", color: "#8B949E" }}>
+                            {task.client_name && <span>🏢 {task.client_name}</span>}
+                            {task.category_name && <span>📂 {task.category_name}</span>}
+                          </div>
                         </div>
-                        <div style={{ display: "flex", gap: "12px", marginTop: "6px", fontSize: "13px", color: "#8B949E" }}>
-                          {task.client_name && <span>🏢 {task.client_name}</span>}
-                          {task.category_name && <span>📂 {task.category_name}</span>}
+                        <button onClick={() => deleteTask(task.id)} style={{ color: "#F85149", background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>
+                          Delete
+                        </button>
+                      </div>
+
+                      <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: col.bg, color: col.text, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700 }}>
+                          {initials(empName)}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "14px" }}>{empName}</div>
+                          <div style={{ fontSize: "12px", color: "#6B7A8D" }}>{formatDate(task.created_at)}</div>
                         </div>
                       </div>
 
-                      <button onClick={() => deleteTask(task.id)} style={{ color: "#F85149", background: "none", border: "none", cursor: "pointer" }}>
-                        Delete
-                      </button>
-                    </div>
-
-                    <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
-                      <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: col.bg, color: col.text, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "13px" }}>
-                        {initials(empName)}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: "14px" }}>{empName}</div>
-                        <div style={{ fontSize: "12px", color: "#6B7A8D" }}>{formatDate(task.created_at)}</div>
-                      </div>
-                    </div>
-
-                    <div style={{ marginTop: "14px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                      <span style={{ padding: "4px 12px", borderRadius: "999px", fontSize: "12px", background: pc.bg, color: pc.text, border: `1px solid ${pc.border}` }}>
-                        {task.priority || "Medium"}
-                      </span>
-                      {task.deadline && (
-                        <span style={{ fontSize: "13px", color: overdue ? "#F85149" : "#8B949E" }}>
-                          📅 {formatDate(task.deadline)}
+                      <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                        <span style={{ padding: "4px 12px", borderRadius: "999px", fontSize: "12px", background: pc.bg, color: pc.text, border: `1px solid ${pc.border}` }}>
+                          {task.priority || "Medium"}
                         </span>
-                      )}
-                      <select value={task.status} onChange={(e) => updateStatus(task.id, e.target.value)} style={{
-                        marginLeft: "auto",
-                        padding: "6px 12px",
-                        borderRadius: "999px",
-                        background: sc.bg,
-                        color: sc.text,
-                        border: `1px solid ${sc.border}`
-                      }}>
-                        <option value="pending">Pending</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                        <option value="cannot_complete">Cannot Complete</option>
-                        <option value="failed">Failed</option>
-                      </select>
+                        {task.deadline && <span style={{ fontSize: "13px", color: overdue ? "#F85149" : "#8B949E" }}>📅 {formatDate(task.deadline)}</span>}
+                        <select value={task.status} onChange={e => updateStatus(task.id, e.target.value)} style={{
+                          marginLeft: "auto",
+                          padding: "6px 14px",
+                          borderRadius: "999px",
+                          background: sc.bg,
+                          color: sc.text,
+                          border: `1px solid ${sc.border}`,
+                          fontSize: "13px"
+                        }}>
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                          <option value="cannot_complete">Cannot Complete</option>
+                          <option value="failed">Failed</option>
+                        </select>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           ))
         )}
       </div>
 
       {toast && (
-        <div style={{
-          position: "fixed",
-          bottom: "30px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "#161B22",
-          color: "#38D39F",
-          padding: "14px 24px",
-          borderRadius: "10px",
-          border: "1px solid rgba(56,211,159,0.4)",
-          zIndex: 1000,
-          fontWeight: 500
+        <div style={{ 
+          position: "fixed", 
+          bottom: "30px", 
+          left: "50%", 
+          transform: "translateX(-50%)", 
+          background: "#161B22", 
+          color: "#38D39F", 
+          padding: "14px 28px", 
+          borderRadius: "10px", 
+          border: "1px solid rgba(56,211,159,0.4)", 
+          zIndex: 1000 
         }}>
           ✓ {toast}
         </div>
