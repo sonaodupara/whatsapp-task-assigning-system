@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" });
 
-  const { title, assigned_to, notes, deadline, priority } = await request.json();
+  const { title, assigned_to, notes, deadline, priority, client_id, client_name, category_id, category_name } = await request.json();
 
   const { data, error } = await supabase
     .from("tasks")
@@ -82,6 +82,10 @@ export async function POST(request: Request) {
       priority: priority || "Medium",
       status: "pending",
       user_id: user.id,
+      client_id: client_id || null,
+      client_name: client_name || null,
+      category_id: category_id || null,
+      category_name: category_name || null,
     }])
     .select();
 
@@ -92,7 +96,7 @@ export async function POST(request: Request) {
   const deadlineStr = task.deadline
     ? new Date(task.deadline).toLocaleDateString("en-IN")
     : "No deadline";
-  console.log("SENDING TO META:", { to: assigned_to.replace("+", ""), shortId, title: task.title, priority: task.priority, deadline: deadlineStr });
+
   const waResult = await sendWhatsAppMessage(
     assigned_to.replace("+", ""),
     shortId,
