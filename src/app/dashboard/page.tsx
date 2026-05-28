@@ -84,10 +84,16 @@ function exportCSV(tasks: Task[]) {
     formatDate(t.created_at),
   ]);
   const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = "tasks.csv"; a.click();
+  a.href = url;
+  a.download = `tasks_${new Date().toISOString().slice(0,10)}.csv`;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export default function Dashboard() {
