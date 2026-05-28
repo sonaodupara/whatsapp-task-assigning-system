@@ -70,7 +70,15 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" });
 
-  const { title, assigned_to, notes, deadline, priority, client_id, client_name, category_id, category_name } = await request.json();
+  const { title, assigned_to, notes, deadline, priority, client_id, client_name, category_id, category_name, bulk } = await request.json();
+
+  // For bulk tasks, only send WhatsApp — task already inserted by bulk page
+  if (bulk) {
+    const shortId = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const deadlineStr = deadline ? new Date(deadline).toLocaleDateString("en-IN") : "No deadline";
+    await sendWhatsAppMessage(assigned_to.replace("+", ""), shortId, title, priority || "Medium", deadlineStr);
+    return NextResponse.json({ success: true });
+  }
 
   const { data, error } = await supabase
     .from("tasks")
