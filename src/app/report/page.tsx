@@ -55,20 +55,10 @@ export default function ReportPage() {
         <p style={{ margin: "0 0 14px", fontSize: "12px", color: "#777" }}>
           {new Date().toLocaleDateString("en-IN")} · {tasks.length} tasks
         </p>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            onClick={() => {
-                window.open("https://whatsapp-task-system.vercel.app/report", "_blank");
-                }}
-              style={{ flex: 1, padding: "10px", background: "#1A5276", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", cursor: "pointer", fontWeight: 600 }}
->
-  Open in Chrome
-            </button>
-          <button onClick={() => window.history.back()}
-            style={{ flex: 1, padding: "10px", background: "#f1f1f1", color: "#333", border: "1px solid #ddd", borderRadius: "8px", fontSize: "14px", cursor: "pointer", fontWeight: 600 }}>
-            ← Back
-          </button>
-        </div>
+        <button onClick={() => window.history.back()}
+          style={{ padding: "10px 20px", background: "#f1f1f1", color: "#333", border: "1px solid #ddd", borderRadius: "8px", fontSize: "14px", cursor: "pointer", fontWeight: 600 }}>
+          ← Back
+        </button>
       </div>
 
       {/* Summary */}
@@ -102,13 +92,6 @@ export default function ReportPage() {
           </div>
         ))}
       </div>
-
-      <style>{`
-        @media print {
-          button { display: none !important; }
-          body { padding: 0; }
-        }
-      `}</style>
     </div>
   );
 }
