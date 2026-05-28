@@ -149,7 +149,7 @@ export default function BulkPage() {
 
         {/* Step 1 — Category */}
         <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "24px", marginBottom: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, color: "#8B949E", marginBottom: "16px", letterSpacing: "0.08em" }}>STEP 1 — SELECT SERVICE CATEGORY</div>
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "#8B949E", marginBottom: "16px", letterSpacing: "0.08em" }}>SERVICE CATEGORY</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "10px" }}>
             {categories.map(cat => (
               <button key={cat.id} onClick={() => selectCategory(cat)}
@@ -175,7 +175,7 @@ export default function BulkPage() {
 
         {/* Step 2 — Period */}
         <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "24px", marginBottom: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, color: "#8B949E", marginBottom: "16px", letterSpacing: "0.08em" }}>STEP 2 — PERIOD & SETTINGS</div>
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "#8B949E", marginBottom: "16px", letterSpacing: "0.08em" }}>PERIOD & SETTINGS</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "12px" }}>
             <div>
               <label style={{ fontSize: "12px", color: "#6B7A8D", display: "block", marginBottom: "6px", fontWeight: 500 }}>MONTH</label>
@@ -208,7 +208,7 @@ export default function BulkPage() {
         <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "24px", marginBottom: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div style={{ fontSize: "11px", fontWeight: 700, color: "#8B949E", letterSpacing: "0.08em" }}>
-              STEP 3 — SELECT CLIENTS ({selectedClients.length}/{clients.length})
+              SELECT CLIENTS ({selectedClients.length}/{clients.length})
             </div>
             <button onClick={toggleAllClients}
               style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#21262D", color: "#58A6FF", border: "1px solid #30363D", borderRadius: "7px", fontSize: "12px", cursor: "pointer", fontWeight: 500 }}>
