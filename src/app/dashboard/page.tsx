@@ -91,25 +91,47 @@ function exportCSV(tasks: Task[]) {
 }
 
 function exportReport(tasks: Task[]) {
-  const lines: string[] = [];
-  lines.push("<html><head><title>Task Report</title>");
-  lines.push("<style>body{font-family:sans-serif;padding:20px;color:#000}");
-  lines.push("h1{color:#1A5276}table{width:100%;border-collapse:collapse;margin-top:20px}");
-  lines.push("th{background:#1A5276;color:white;padding:8px;text-align:left}");
-  lines.push("td{padding:8px;border-bottom:1px solid #ddd}");
-  lines.push("tr:nth-child(even){background:#f5f5f5}</style></head><body>");
-  lines.push(`<h1>Task Report</h1>`);
-  lines.push(`<p>Generated: ${new Date().toLocaleDateString("en-IN")} | Total: ${tasks.length} tasks</p>`);
-  lines.push("<table><tr><th>Title</th><th>Client</th><th>Category</th><th>Assigned To</th><th>Status</th><th>Priority</th><th>Deadline</th></tr>");
-  tasks.forEach(t => {
-    lines.push(`<tr><td>${t.title}</td><td>${t.client_name || "-"}</td><td>${t.category_name || "-"}</td><td>${t.assigned_to}</td><td>${t.status}</td><td>${t.priority || "Medium"}</td><td>${t.deadline ? formatDate(t.deadline) : "-"}</td></tr>`);
-  });
-  lines.push("</table></body></html>");
-  const html = lines.join("");
+  const rows = tasks.map(t => `
+    <tr>
+      <td>${t.title}</td>
+      <td>${t.client_name || "-"}</td>
+      <td>${t.category_name || "-"}</td>
+      <td>${t.assigned_to}</td>
+      <td>${t.status}</td>
+      <td>${t.priority || "Medium"}</td>
+      <td>${t.deadline ? formatDate(t.deadline) : "-"}</td>
+    </tr>`).join("");
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task Report</title>
+  <style>
+    body { font-family: sans-serif; padding: 16px; color: #000; }
+    h1 { color: #1A5276; font-size: 20px; }
+    .btn { display: inline-block; margin: 12px 8px 12px 0; padding: 10px 20px; background: #1A5276; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+    th { background: #1A5276; color: white; padding: 8px; text-align: left; }
+    td { padding: 8px; border-bottom: 1px solid #ddd; }
+    tr:nth-child(even) { background: #f5f5f5; }
+    @media print { .btn { display: none; } }
+  </style>
+</head>
+<body>
+  <h1>TaskSend — Task Report</h1>
+  <p>Generated: ${new Date().toLocaleDateString("en-IN")} | Total: ${tasks.length} tasks</p>
+  <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+  <table>
+    <tr><th>Title</th><th>Client</th><th>Category</th><th>Assigned</th><th>Status</th><th>Priority</th><th>Deadline</th></tr>
+    ${rows}
+  </table>
+</body>
+</html>`;
+
   const blob = new Blob([html], { type: "text/html" });
   const url = URL.createObjectURL(blob);
-  const win = window.open(url, "_blank");
-  if (win) setTimeout(() => win.print(), 500);
+  window.open(url, "_blank");
 }
 
 export default function Dashboard() {
