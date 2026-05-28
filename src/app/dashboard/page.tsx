@@ -84,14 +84,42 @@ function exportCSV(tasks: Task[]) {
     formatDate(t.created_at),
   ]);
   const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "tasks.csv"; a.click();
+}
 
+function exportReport(tasks: Task[]) {
+  const lines: string[] = [];
+  lines.push("TASKSEND — TASK REPORT");
+  lines.push(`Generated: ${new Date().toLocaleDateString("en-IN")}`);
+  lines.push(`Total Tasks: ${tasks.length}`);
+  lines.push("=".repeat(60));
+  lines.push("");
+
+  tasks.forEach((t, i) => {
+    lines.push(`${i + 1}. ${t.title}`);
+    if (t.client_name) lines.push(`   Client: ${t.client_name}`);
+    if (t.category_name) lines.push(`   Category: ${t.category_name}`);
+    lines.push(`   Assigned To: ${t.assigned_to}`);
+    lines.push(`   Status: ${t.status}  |  Priority: ${t.priority || "Medium"}`);
+    if (t.deadline) lines.push(`   Deadline: ${formatDate(t.deadline)}`);
+    lines.push(`   Created: ${formatDate(t.created_at)}`);
+    lines.push("");
+  });
+
+  const content = lines.join("\n");
+
+  // Use Web Share API on mobile, download on desktop
   if (navigator.share) {
-    navigator.share({ title: 'Tasks Export', text: csv });
+    navigator.share({ title: "Task Report", text: content });
   } else {
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "tasks.csv"; a.click();
+    a.href = url; a.download = "tasks-report.txt"; a.click();
+    URL.revokeObjectURL(url);
   }
 }
 
@@ -113,6 +141,8 @@ export default function Dashboard() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [toast, setToast] = useState("");
+  const [showExport, setShowExport] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -123,6 +153,9 @@ export default function Dashboard() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("client")) setFilterClient(params.get("client")!);
     if (params.get("category")) setFilterCategory(params.get("category")!);
+
+    // Detect mobile
+    setIsMobile(window.innerWidth < 768);
 
     const interval = setInterval(() => {
       supabase.auth.getSession().then(({ data: { session } }) => {
@@ -290,10 +323,28 @@ export default function Dashboard() {
               style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#21262D", color: "#8B949E", border: "1px solid #30363D", borderRadius: "8px", fontSize: "13px", cursor: "pointer" }}>
               <RefreshCw size={14} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
             </button>
-            <button onClick={() => exportCSV(filtered)}
-              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#238636", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}>
-              <Download size={14} /> Export CSV
-            </button>
+
+            {/* Export Dropdown */}
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setShowExport(!showExport)}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#238636", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}>
+                <Download size={14} /> Export ▾
+              </button>
+              {showExport && (
+                <div style={{ position: "absolute", top: "40px", right: 0, background: "#161B22", border: "1px solid #30363D", borderRadius: "10px", zIndex: 200, minWidth: "160px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", overflow: "hidden" }}>
+                  {!isMobile && (
+                    <button onClick={() => { exportCSV(filtered); setShowExport(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "12px 16px", background: "transparent", color: "#C9D1D9", border: "none", borderBottom: "1px solid #21262D", cursor: "pointer", fontSize: "13px", textAlign: "left" as const }}>
+                      📊 Export CSV
+                    </button>
+                  )}
+                  <button onClick={() => { exportReport(filtered); setShowExport(false); }}
+                    style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "12px 16px", background: "transparent", color: "#C9D1D9", border: "none", cursor: "pointer", fontSize: "13px", textAlign: "left" as const }}>
+                    📄 Share Report
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "8px" }}>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selectStyle}>
