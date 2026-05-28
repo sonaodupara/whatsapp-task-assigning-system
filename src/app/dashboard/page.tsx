@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { BarChart2, AlertTriangle, CheckCircle, Download, RefreshCw } from "lucide-react";
+import { BarChart2, CheckCircle, AlertTriangle, RefreshCw, Download, Search, LogOut, Send, Users, Building2, FolderOpen, Layers } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -112,21 +112,24 @@ export default function Dashboard() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) window.location.href = "/login";
-      else { 
-        setUser(session.user); 
-        fetchAll(session.user.id); 
-      }
+      else { setUser(session.user); fetchAll(session.user.id); }
     });
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("client")) setFilterClient(params.get("client")!);
+    if (params.get("category")) setFilterCategory(params.get("category")!);
+
+    const interval = setInterval(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) fetchTasks(session.user.id);
+      });
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   async function fetchAll(userId: string) {
     setLoading(true);
-    await Promise.all([
-      fetchTasks(userId),
-      fetchEmployees(userId),
-      fetchClients(),
-      fetchCategories(),
-    ]);
+    await Promise.all([fetchTasks(userId), fetchEmployees(userId), fetchClients(), fetchCategories()]);
     setLoading(false);
   }
 
@@ -154,23 +157,25 @@ export default function Dashboard() {
     setRefreshing(true);
     if (user) await fetchTasks(user.id);
     setRefreshing(false);
-    setToast("Refreshed");
-    setTimeout(() => setToast(""), 2000);
+    showToast("Refreshed");
   }
 
   async function updateStatus(id: string, status: string) {
     await supabase.from("tasks").update({ status }).eq("id", id);
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t));
-    setToast("Status updated");
-    setTimeout(() => setToast(""), 1500);
+    showToast("Status updated");
   }
 
   async function deleteTask(id: string) {
     if (!confirm("Delete this task?")) return;
     await supabase.from("tasks").delete().eq("id", id);
     setTasks(prev => prev.filter(t => t.id !== id));
-    setToast("Task deleted");
-    setTimeout(() => setToast(""), 1500);
+    showToast("Task deleted");
+  }
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
   }
 
   function getEmpName(phone: string) {
@@ -192,9 +197,31 @@ export default function Dashboard() {
       if (filterCategory !== "all" && t.category_id !== filterCategory) return false;
       if (search && !t.title.toLowerCase().includes(search.toLowerCase()) &&
           !(t.client_name || "").toLowerCase().includes(search.toLowerCase())) return false;
+      if (dateFrom && new Date(t.created_at) < new Date(dateFrom)) return false;
+      if (dateTo && new Date(t.created_at) > new Date(dateTo + "T23:59:59")) return false;
       return true;
     })
     .sort((a, b) => (PRIORITY_ORDER[a.priority || "Medium"] ?? 1) - (PRIORITY_ORDER[b.priority || "Medium"] ?? 1));
+
+  function getGroups() {
+    if (groupBy === "none") return [{ label: null, tasks: filtered }];
+    if (groupBy === "category") {
+      const groups: Record<string, Task[]> = {};
+      filtered.forEach(t => { const key = t.category_name || "No Category"; if (!groups[key]) groups[key] = []; groups[key].push(t); });
+      return Object.entries(groups).map(([label, tasks]) => ({ label, tasks }));
+    }
+    if (groupBy === "client") {
+      const groups: Record<string, Task[]> = {};
+      filtered.forEach(t => { const key = t.client_name || "No Client"; if (!groups[key]) groups[key] = []; groups[key].push(t); });
+      return Object.entries(groups).map(([label, tasks]) => ({ label, tasks }));
+    }
+    if (groupBy === "status") {
+      const groups: Record<string, Task[]> = {};
+      filtered.forEach(t => { const key = t.status; if (!groups[key]) groups[key] = []; groups[key].push(t); });
+      return Object.entries(groups).map(([label, tasks]) => ({ label, tasks }));
+    }
+    return [{ label: null, tasks: filtered }];
+  }
 
   const stats = {
     total: tasks.length,
@@ -203,191 +230,239 @@ export default function Dashboard() {
     overdue: tasks.filter(t => isOverdue(t.deadline, t.status)).length,
   };
 
-  function getGroups() {
-    if (groupBy === "none") return [{ label: null, tasks: filtered }];
-    const groups: Record<string, Task[]> = {};
-    filtered.forEach(t => {
-      let key = "Other";
-      if (groupBy === "category") key = t.category_name || "No Category";
-      if (groupBy === "client") key = t.client_name || "No Client";
-      if (groupBy === "status") key = t.status;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(t);
-    });
-    return Object.entries(groups).map(([label, tasks]) => ({ label, tasks }));
-  }
+  const signOut = async () => { await supabase.auth.signOut(); window.location.href = "/login"; };
 
-  const groups = getGroups();
-
-  const inputStyle = {
-    padding: "10px 12px", fontSize: "14px",
+  const selectStyle = {
+    padding: "8px 12px", fontSize: "13px",
     background: "#0D1117", border: "1px solid #30363D",
     borderRadius: "8px", color: "#F0F6FF", outline: "none",
   };
 
   if (!user) return (
     <div style={{ minHeight: "100vh", background: "#0D1117", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ color: "#58A6FF" }}>Loading...</div>
+      <div style={{ color: "#58A6FF", fontFamily: "sans-serif" }}>Loading...</div>
     </div>
   );
 
+  const groups = getGroups();
+
   return (
-    <div style={{ padding: "32px 24px", maxWidth: "1280px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "32px" }}>
-        <h1 style={{ fontSize: "32px", fontWeight: 700, margin: 0 }}>Dashboard</h1>
-        <p style={{ color: "#8B949E", marginTop: "8px" }}>Welcome back! Here's what's happening.</p>
-      </div>
+    <div style={{ minHeight: "100vh", background: "#0D1117", fontFamily: "'Segoe UI', sans-serif", color: "#F0F6FF" }}>
 
-      {/* Stats Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "40px" }}>
-        {[
-          { label: "TOTAL", value: stats.total, color: "#58A6FF" },
-          { label: "COMPLETED", value: stats.completed, color: "#38D39F" },
-          { label: "PENDING", value: stats.pending, color: "#D29922" },
-          { label: "OVERDUE", value: stats.overdue, color: "#F85149" },
-        ].map((s, i) => (
-          <div key={i} style={{
-            background: "#161B22",
-            border: "1px solid #21262D",
-            borderRadius: "12px",
-            padding: "24px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.3)"
-          }}>
-            <div style={{ fontSize: "13px", color: "#8B949E", fontWeight: 600 }}>{s.label}</div>
-            <div style={{ fontSize: "42px", fontWeight: 700, marginTop: "8px", color: s.color }}>{s.value}</div>
+      {/* Header */}
+      <div style={{ background: "#161B22", borderBottom: "1px solid #21262D", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, height: "56px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #1A5276, #2E86C1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Send size={16} color="white" />
           </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-          <input 
-            placeholder="Search tasks or clients..." 
-            value={search} 
-            onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, minWidth: "200px", ...inputStyle }}
-          />
-          <select value={groupBy} onChange={e => setGroupBy(e.target.value)} style={inputStyle}>
-            <option value="none">No Grouping</option>
-            <option value="category">Group by Category</option>
-            <option value="client">Group by Client</option>
-            <option value="status">Group by Status</option>
-          </select>
-          <button onClick={refreshTasks} style={{ padding: "10px 20px", background: "#21262D", border: "1px solid #30363D", borderRadius: "8px", color: "#58A6FF", display: "flex", alignItems: "center", gap: "8px" }}>
-            <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} /> Refresh
+          <span style={{ fontSize: "15px", fontWeight: 700, color: "#F0F6FF" }}>TaskSend</span>
+          <div style={{ width: "1px", height: "20px", background: "#21262D", margin: "0 4px" }} />
+          <span style={{ fontSize: "13px", color: "#58A6FF", fontWeight: 500 }}>Dashboard</span>
+        </div>
+        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+          {[
+            { href: "/", icon: Send, label: "Send" },
+            { href: "/clients", icon: Building2, label: "Clients" },
+            { href: "/categories", icon: FolderOpen, label: "Categories" },
+            { href: "/teams", icon: Users, label: "Teams" },
+            { href: "/bulk", icon: Layers, label: "Bulk" },
+          ].map(({ href, icon: Icon, label }) => (
+            <a key={href} href={href} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 10px", background: "#21262D", color: "#8B949E", borderRadius: "7px", textDecoration: "none", fontSize: "12px", border: "1px solid #30363D" }}>
+              <Icon size={13} />{label}
+            </a>
+          ))}
+          <button onClick={refreshTasks} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 10px", background: "#21262D", color: "#8B949E", border: "1px solid #30363D", borderRadius: "7px", fontSize: "12px", cursor: "pointer" }}>
+            <RefreshCw size={13} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
           </button>
-          <button onClick={() => exportCSV(filtered)} style={{ padding: "10px 20px", background: "#238636", color: "white", border: "none", borderRadius: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <Download size={18} /> Export CSV
+          <button onClick={signOut} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 10px", background: "transparent", color: "#6B7A8D", border: "1px solid #30363D", borderRadius: "7px", fontSize: "12px", cursor: "pointer" }}>
+            <LogOut size={13} />
           </button>
         </div>
       </div>
 
-      {/* Tasks List */}
-      <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "24px" }}>
-        {loading ? (
-          <div style={{ textAlign: "center", padding: "80px", color: "#8B949E" }}>Loading tasks...</div>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px", color: "#484F58" }}>No tasks found</div>
-        ) : (
-          groups.map((group, gi) => (
-            <div key={gi}>
-              {group.label && (
-                <div style={{ fontSize: "15px", fontWeight: 600, color: "#8B949E", margin: "24px 0 12px", display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ height: "1px", flex: 1, background: "#21262D" }}></div>
-                  {group.label} ({group.tasks.length})
-                  <div style={{ height: "1px", flex: 1, background: "#21262D" }}></div>
-                </div>
-              )}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {group.tasks.map(task => {
-                  const empName = getEmpName(task.assigned_to);
-                  const col = getAvatarColor(empName);
-                  const sc = statusStyles[task.status] || statusStyles.pending;
-                  const pc = priorityStyles[task.priority || "Medium"] || priorityStyles.Medium;
-                  const overdue = isOverdue(task.deadline, task.status);
-                  const catColor = getCategoryColor(task.category_id);
+      <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
 
-                  return (
-                    <div key={task.id} style={{
-                      background: "#0D1117",
-                      border: `1px solid ${overdue ? "rgba(248,81,73,0.5)" : "#21262D"}`,
-                      borderLeft: `4px solid ${catColor}`,
-                      borderRadius: "12px",
-                      padding: "20px"
-                    }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: "15px", marginBottom: "6px" }}>
-                            {overdue && <span style={{ color: "#F85149" }}>⚠️ </span>}
-                            {task.title}
-                          </div>
-                          <div style={{ display: "flex", gap: "12px", fontSize: "13px", color: "#8B949E" }}>
-                            {task.client_name && <span>🏢 {task.client_name}</span>}
-                            {task.category_name && <span>📂 {task.category_name}</span>}
-                          </div>
-                        </div>
-                        <button onClick={() => deleteTask(task.id)} style={{ color: "#F85149", background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>
-                          Delete
-                        </button>
-                      </div>
-
-                      <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
-                        <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: col.bg, color: col.text, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700 }}>
-                          {initials(empName)}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: "14px" }}>{empName}</div>
-                          <div style={{ fontSize: "12px", color: "#6B7A8D" }}>{formatDate(task.created_at)}</div>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-                        <span style={{ padding: "4px 12px", borderRadius: "999px", fontSize: "12px", background: pc.bg, color: pc.text, border: `1px solid ${pc.border}` }}>
-                          {task.priority || "Medium"}
-                        </span>
-                        {task.deadline && <span style={{ fontSize: "13px", color: overdue ? "#F85149" : "#8B949E" }}>📅 {formatDate(task.deadline)}</span>}
-                        <select value={task.status} onChange={e => updateStatus(task.id, e.target.value)} style={{
-                          marginLeft: "auto",
-                          padding: "6px 14px",
-                          borderRadius: "999px",
-                          background: sc.bg,
-                          color: sc.text,
-                          border: `1px solid ${sc.border}`,
-                          fontSize: "13px"
-                        }}>
-                          <option value="pending">Pending</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="completed">Completed</option>
-                          <option value="cannot_complete">Cannot Complete</option>
-                          <option value="failed">Failed</option>
-                        </select>
-                      </div>
-                    </div>
-                  );
-                })}
+        {/* Stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+          {[
+            { label: "Total Tasks", value: stats.total, icon: BarChart2, color: "#58A6FF" },
+            { label: "Completed", value: stats.completed, icon: CheckCircle, color: "#38D39F" },
+            { label: "Pending", value: stats.pending, icon: AlertTriangle, color: "#D29922" },
+            { label: "Overdue", value: stats.overdue, icon: AlertTriangle, color: "#F85149" },
+          ].map((s, i) => (
+            <div key={i} style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <span style={{ fontSize: "12px", color: "#8B949E", fontWeight: 500 }}>{s.label}</span>
+                <s.icon size={18} style={{ color: s.color }} />
               </div>
+              <div style={{ fontSize: "36px", fontWeight: 700, color: s.color }}>{s.value}</div>
             </div>
-          ))
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "16px", marginBottom: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "12px", alignItems: "center" }}>
+            <div style={{ flex: 1, minWidth: "200px", position: "relative" }}>
+              <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#6B7A8D" }} />
+              <input placeholder="Search tasks or clients..."
+                value={search} onChange={e => setSearch(e.target.value)}
+                style={{ ...selectStyle, width: "100%", paddingLeft: "32px", boxSizing: "border-box" as const }} />
+            </div>
+            <select value={groupBy} onChange={e => setGroupBy(e.target.value)} style={selectStyle}>
+              <option value="none">No Grouping</option>
+              <option value="category">Group by Category</option>
+              <option value="client">Group by Client</option>
+              <option value="status">Group by Status</option>
+            </select>
+            <button onClick={() => exportCSV(filtered)}
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#238636", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}>
+              <Download size={14} /> Export CSV
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "8px" }}>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selectStyle}>
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="cannot_complete">Cannot Complete</option>
+              <option value="failed">Failed</option>
+            </select>
+            <select value={filterClient} onChange={e => setFilterClient(e.target.value)} style={selectStyle}>
+              <option value="all">All Clients</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={selectStyle}>
+              <option value="all">All Categories</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select value={filterEmp} onChange={e => setFilterEmp(e.target.value)} style={selectStyle}>
+              <option value="all">All Employees</option>
+              {employees.map(e => <option key={e.id} value={e.phone}>{e.name}</option>)}
+            </select>
+            <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={selectStyle}>
+              <option value="all">All Priority</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={selectStyle} title="From date" />
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={selectStyle} title="To date" />
+          </div>
+          <div style={{ marginTop: "10px", fontSize: "12px", color: "#484F58" }}>{filtered.length} tasks</div>
+        </div>
+
+        {/* Task Groups */}
+        {loading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {[1, 2, 3].map(i => <div key={i} style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", height: "100px", opacity: 0.4 }} />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "80px", color: "#484F58" }}>
+            <BarChart2 size={40} style={{ margin: "0 auto 16px", opacity: 0.3 }} />
+            <div style={{ fontSize: "15px" }}>No tasks found</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {groups.map((group, gi) => (
+              <div key={gi}>
+                {group.label && (
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "#8B949E", marginBottom: "10px", display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ height: "1px", flex: 1, background: "#21262D" }} />
+                    <span>{group.label}</span>
+                    <span style={{ fontSize: "11px", color: "#484F58", background: "#21262D", padding: "2px 8px", borderRadius: "10px" }}>{group.tasks.length}</span>
+                    <div style={{ height: "1px", flex: 1, background: "#21262D" }} />
+                  </div>
+                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {group.tasks.map(task => {
+                    const empName = getEmpName(task.assigned_to);
+                    const col = getAvatarColor(empName);
+                    const sc = statusStyles[task.status] || statusStyles.pending;
+                    const pc = priorityStyles[task.priority || "Medium"] || priorityStyles.Medium;
+                    const overdue = isOverdue(task.deadline, task.status);
+                    const catColor = getCategoryColor(task.category_id);
+
+                    return (
+                      <div key={task.id} style={{
+                        background: "#161B22", borderRadius: "12px", padding: "16px",
+                        border: overdue ? "1px solid rgba(248,81,73,0.4)" : "1px solid #21262D",
+                        borderLeft: `3px solid ${catColor}`,
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
+                          <div style={{ flex: 1, marginRight: "12px" }}>
+                            <div style={{ fontWeight: 600, fontSize: "14px", color: "#F0F6FF", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                              {overdue && <AlertTriangle size={14} style={{ color: "#F85149", flexShrink: 0 }} />}
+                              {task.title}
+                            </div>
+                            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                              {task.client_name && (
+                                <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "#58A6FF" }}>
+                                  <Building2 size={11} />{task.client_name}
+                                </span>
+                              )}
+                              {task.category_name && (
+                                <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: catColor }}>
+                                  <FolderOpen size={11} />{task.category_name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button onClick={() => deleteTask(task.id)}
+                            style={{ padding: "5px 12px", background: "rgba(248,81,73,0.1)", color: "#F85149", border: "1px solid rgba(248,81,73,0.3)", borderRadius: "6px", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                            Delete
+                          </button>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                          <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: col.bg, color: col.text, fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            {initials(empName)}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: "13px", fontWeight: 500, color: "#C9D1D9" }}>{empName}</div>
+                            <div style={{ fontSize: "11px", color: "#484F58" }}>{formatDate(task.created_at)}</div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                          <span style={{ padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: 600, background: pc.bg, color: pc.text, border: `1px solid ${pc.border}` }}>
+                            {task.priority || "Medium"}
+                          </span>
+                          {task.deadline && (
+                            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: overdue ? "#F85149" : "#6B7A8D" }}>
+                              <CheckCircle size={11} />{formatDate(task.deadline)}
+                            </span>
+                          )}
+                          <div style={{ marginLeft: "auto" }}>
+                            <select value={task.status} onChange={e => updateStatus(task.id, e.target.value)}
+                              style={{ padding: "5px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, border: `1px solid ${sc.border}`, cursor: "pointer", background: sc.bg, color: sc.text, outline: "none" }}>
+                              <option value="pending">Pending</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="completed">Completed</option>
+                              <option value="cannot_complete">Cannot Complete</option>
+                              <option value="failed">Failed</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
       {toast && (
-        <div style={{ 
-          position: "fixed", 
-          bottom: "30px", 
-          left: "50%", 
-          transform: "translateX(-50%)", 
-          background: "#161B22", 
-          color: "#38D39F", 
-          padding: "14px 28px", 
-          borderRadius: "10px", 
-          border: "1px solid rgba(56,211,159,0.4)", 
-          zIndex: 1000 
-        }}>
+        <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: "#161B22", color: "#38D39F", padding: "12px 24px", borderRadius: "8px", fontSize: "13px", zIndex: 999, border: "1px solid rgba(56,211,159,0.3)", fontWeight: 500, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}>
           ✓ {toast}
         </div>
       )}
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
