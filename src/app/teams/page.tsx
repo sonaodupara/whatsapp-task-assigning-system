@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { Plus, Pencil, Trash2, Users } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,7 +60,6 @@ export default function TeamsPage() {
   async function saveTeam() {
     if (!form.name.trim()) { showToast("Team name is required"); return; }
     const { data: { session } } = await supabase.auth.getSession();
-
     if (editTeam) {
       await supabase.from("teams").update({ ...form }).eq("id", editTeam.id);
       showToast("Team updated");
@@ -67,16 +67,13 @@ export default function TeamsPage() {
       await supabase.from("teams").insert([{ ...form, user_id: session?.user.id }]);
       showToast("Team added");
     }
-
     setForm({ name: "", color: "#2E86C1" });
-    setShowForm(false);
-    setEditTeam(null);
+    setShowForm(false); setEditTeam(null);
     fetchAll();
   }
 
   async function deleteTeam(id: string) {
     if (!confirm("Delete this team?")) return;
-    // Unassign employees and categories from this team
     await supabase.from("employees").update({ team_id: null, team_name: null }).eq("team_id", id);
     await supabase.from("categories").update({ team_id: null, team_name: null }).eq("team_id", id);
     await supabase.from("teams").delete().eq("id", id);
@@ -122,126 +119,108 @@ export default function TeamsPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#0D1117", fontFamily: "'Segoe UI', sans-serif", color: "#F0F6FF" }}>
-
-      {/* Header */}
-      <div style={{ background: "#161B22", borderBottom: "1px solid #21262D", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #1A5276, #2E86C1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>💬</div>
-          <span style={{ fontSize: "15px", fontWeight: 600 }}>TaskSend</span>
-          <span style={{ fontSize: "12px", color: "#484F58", paddingLeft: "8px", borderLeft: "1px solid #21262D" }}>Teams</span>
-        </div>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <a href="/" style={{ padding: "7px 12px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "12px", border: "1px solid #30363D" }}>← Send</a>
-          <a href="/dashboard" style={{ padding: "7px 12px", background: "#21262D", color: "#58A6FF", borderRadius: "8px", textDecoration: "none", fontSize: "12px", border: "1px solid #30363D" }}>📊 Dashboard</a>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: "900px", margin: "0 auto", padding: "24px 16px" }}>
+      <div style={{ maxWidth: "960px", margin: "0 auto", padding: "32px 24px" }}>
 
         {/* Title */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "32px", flexWrap: "wrap", gap: "12px" }}>
           <div>
-            <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px" }}>Teams</h2>
-            <p style={{ fontSize: "13px", color: "#6B7A8D", margin: 0 }}>Group employees by department</p>
+            <h1 style={{ fontSize: "28px", fontWeight: 700, margin: "0 0 6px" }}>Teams</h1>
+            <p style={{ fontSize: "14px", color: "#8B949E", margin: 0 }}>Group employees by department</p>
           </div>
           <button onClick={() => { setShowForm(!showForm); setEditTeam(null); setForm({ name: "", color: "#2E86C1" }); }}
-            style={{ padding: "10px 18px", background: "linear-gradient(135deg, #1A5276, #2E86C1)", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}>
-            + Add Team
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 18px", background: "linear-gradient(135deg, #1A5276, #2E86C1)", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", cursor: "pointer", fontWeight: 500, boxShadow: "0 4px 12px rgba(46,134,193,0.25)" }}>
+            <Plus size={15} /> Add Team
           </button>
         </div>
 
         {/* Form */}
         {showForm && (
-          <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "20px", marginBottom: "20px" }}>
-            <h3 style={{ fontSize: "15px", fontWeight: 600, margin: "0 0 16px" }}>{editTeam ? "Edit Team" : "New Team"}</h3>
-            <div style={{ marginBottom: "14px" }}>
-              <label style={{ fontSize: "12px", color: "#8B949E", display: "block", marginBottom: "5px" }}>TEAM NAME *</label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. GST Team" style={inputStyle} />
-            </div>
+          <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "24px", marginBottom: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
+            <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 20px" }}>{editTeam ? "Edit Team" : "New Team"}</h3>
             <div style={{ marginBottom: "16px" }}>
-              <label style={{ fontSize: "12px", color: "#8B949E", display: "block", marginBottom: "8px" }}>COLOR</label>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <label style={{ fontSize: "11px", color: "#8B949E", display: "block", marginBottom: "6px", fontWeight: 700, letterSpacing: "0.05em" }}>TEAM NAME *</label>
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. GST Team" style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ fontSize: "11px", color: "#8B949E", display: "block", marginBottom: "10px", fontWeight: 700, letterSpacing: "0.05em" }}>COLOR</label>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                 {COLORS.map(c => (
                   <div key={c} onClick={() => setForm({ ...form, color: c })}
-                    style={{ width: "28px", height: "28px", borderRadius: "50%", background: c, cursor: "pointer", border: form.color === c ? "3px solid white" : "3px solid transparent", boxSizing: "border-box" }} />
+                    style={{ width: "32px", height: "32px", borderRadius: "50%", background: c, cursor: "pointer", border: form.color === c ? "3px solid white" : "3px solid transparent", boxSizing: "border-box", boxShadow: form.color === c ? `0 0 0 2px ${c}` : "none" }} />
                 ))}
               </div>
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
               <button onClick={saveTeam}
                 style={{ padding: "10px 20px", background: "linear-gradient(135deg, #1A5276, #2E86C1)", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}>
-                {editTeam ? "Update" : "Save Team"}
+                {editTeam ? "Update Team" : "Save Team"}
               </button>
               <button onClick={() => { setShowForm(false); setEditTeam(null); }}
-                style={{ padding: "10px 14px", background: "transparent", color: "#6B7A8D", border: "1px solid #30363D", borderRadius: "8px", fontSize: "13px", cursor: "pointer" }}>
+                style={{ padding: "10px 16px", background: "transparent", color: "#6B7A8D", border: "1px solid #30363D", borderRadius: "8px", fontSize: "13px", cursor: "pointer" }}>
                 Cancel
               </button>
             </div>
           </div>
         )}
 
-        {/* Teams with members */}
+        {/* Teams */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "60px", color: "#484F58" }}>Loading...</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {[1,2,3].map(i => <div key={i} style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", height: "100px", opacity: 0.4 }} />)}
+          </div>
         ) : teams.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px", color: "#484F58" }}>
-            <div style={{ fontSize: "32px", marginBottom: "12px" }}>👥</div>
-            <div style={{ fontSize: "14px" }}>No teams yet. Add your first team.</div>
+          <div style={{ textAlign: "center", padding: "80px 20px", color: "#484F58" }}>
+            <Users size={48} style={{ margin: "0 auto 16px", opacity: 0.3 }} />
+            <div style={{ fontSize: "16px", marginBottom: "6px" }}>No teams yet</div>
+            <div style={{ fontSize: "13px", color: "#6B7A8D" }}>Add your first team to get started</div>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "24px" }}>
             {teams.map(team => {
               const teamEmployees = employees.filter(e => e.team_id === team.id);
               const teamCategories = categories.filter(c => c.team_id === team.id);
-
               return (
-                <div key={team.id} style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", overflow: "hidden" }}>
-                  {/* Team header */}
-                  <div style={{ padding: "14px 16px", borderBottom: "1px solid #21262D", display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: `4px solid ${team.color}` }}>
+                <div key={team.id} style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
+                  <div style={{ padding: "16px 18px", borderBottom: "1px solid #21262D", display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: `4px solid ${team.color}` }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                       <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: team.color }} />
                       <span style={{ fontSize: "15px", fontWeight: 600 }}>{team.name}</span>
-                      <span style={{ fontSize: "12px", color: "#484F58" }}>{teamEmployees.length} members</span>
+                      <span style={{ fontSize: "12px", color: "#484F58", background: "#21262D", padding: "2px 8px", borderRadius: "10px" }}>{teamEmployees.length} members</span>
                     </div>
                     <div style={{ display: "flex", gap: "6px" }}>
                       <button onClick={() => startEdit(team)}
-                        style={{ padding: "5px 12px", background: "#21262D", color: "#8B949E", border: "1px solid #30363D", borderRadius: "6px", fontSize: "12px", cursor: "pointer" }}>
-                        Edit
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "30px", height: "30px", background: "#21262D", color: "#8B949E", border: "1px solid #30363D", borderRadius: "7px", cursor: "pointer" }}>
+                        <Pencil size={13} />
                       </button>
                       <button onClick={() => deleteTeam(team.id)}
-                        style={{ padding: "5px 12px", background: "rgba(248,81,73,0.1)", color: "#F85149", border: "1px solid rgba(248,81,73,0.3)", borderRadius: "6px", fontSize: "12px", cursor: "pointer" }}>
-                        Delete
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "30px", height: "30px", background: "rgba(248,81,73,0.1)", color: "#F85149", border: "1px solid rgba(248,81,73,0.3)", borderRadius: "7px", cursor: "pointer" }}>
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
-
-                  <div style={{ padding: "14px 16px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                    {/* Members */}
+                  <div style={{ padding: "16px 18px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                     <div>
-                      <div style={{ fontSize: "12px", color: "#8B949E", fontWeight: 600, marginBottom: "8px", letterSpacing: "0.05em" }}>MEMBERS</div>
+                      <div style={{ fontSize: "11px", color: "#8B949E", fontWeight: 700, marginBottom: "10px", letterSpacing: "0.05em" }}>MEMBERS</div>
                       {teamEmployees.length === 0 ? (
                         <div style={{ fontSize: "12px", color: "#484F58" }}>No members assigned</div>
                       ) : (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                           {teamEmployees.map(emp => (
-                            <span key={emp.id} style={{ padding: "4px 10px", background: `${team.color}25`, color: team.color, borderRadius: "20px", fontSize: "12px", border: `1px solid ${team.color}50` }}>
+                            <span key={emp.id} style={{ padding: "4px 10px", background: `${team.color}20`, color: team.color, borderRadius: "20px", fontSize: "12px", border: `1px solid ${team.color}40`, fontWeight: 500 }}>
                               {emp.name}
                             </span>
                           ))}
                         </div>
                       )}
                     </div>
-
-                    {/* Categories */}
                     <div>
-                      <div style={{ fontSize: "12px", color: "#8B949E", fontWeight: 600, marginBottom: "8px", letterSpacing: "0.05em" }}>HANDLES</div>
+                      <div style={{ fontSize: "11px", color: "#8B949E", fontWeight: 700, marginBottom: "10px", letterSpacing: "0.05em" }}>HANDLES</div>
                       {teamCategories.length === 0 ? (
                         <div style={{ fontSize: "12px", color: "#484F58" }}>No categories assigned</div>
                       ) : (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                           {teamCategories.map(cat => (
-                            <span key={cat.id} style={{ padding: "4px 10px", background: `${cat.color}25`, color: cat.color, borderRadius: "20px", fontSize: "12px", border: `1px solid ${cat.color}50` }}>
+                            <span key={cat.id} style={{ padding: "4px 10px", background: `${cat.color}20`, color: cat.color, borderRadius: "20px", fontSize: "12px", border: `1px solid ${cat.color}40`, fontWeight: 500 }}>
                               {cat.name}
                             </span>
                           ))}
@@ -255,21 +234,15 @@ export default function TeamsPage() {
           </div>
         )}
 
-        {/* Assign Employees to Teams */}
-        <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "18px", marginTop: "24px" }}>
-          <h3 style={{ fontSize: "14px", fontWeight: 600, color: "#8B949E", margin: "0 0 14px", letterSpacing: "0.05em" }}>ASSIGN EMPLOYEES TO TEAMS</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {/* Assign Employees */}
+        <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "20px", marginBottom: "16px", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
+          <h3 style={{ fontSize: "11px", fontWeight: 700, color: "#8B949E", margin: "0 0 16px", letterSpacing: "0.08em" }}>ASSIGN EMPLOYEES TO TEAMS</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {employees.map(emp => (
-              <div key={emp.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "#0D1117", borderRadius: "8px", border: "1px solid #21262D" }}>
+              <div key={emp.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#0D1117", borderRadius: "8px", border: "1px solid #21262D" }}>
                 <span style={{ fontSize: "13px", fontWeight: 500, color: "#C9D1D9" }}>{emp.name}</span>
-                <select
-                  value={emp.team_id || ""}
-                  onChange={e => {
-                    const selected = teams.find(t => t.id === e.target.value);
-                    assignEmployeeToTeam(emp.id, e.target.value, selected?.name || "");
-                  }}
-                  style={{ padding: "6px 10px", fontSize: "12px", background: "#161B22", border: "1px solid #30363D", borderRadius: "6px", color: "#F0F6FF", outline: "none", cursor: "pointer" }}
-                >
+                <select value={emp.team_id || ""} onChange={e => { const t = teams.find(t => t.id === e.target.value); assignEmployeeToTeam(emp.id, e.target.value, t?.name || ""); }}
+                  style={{ padding: "6px 10px", fontSize: "12px", background: "#161B22", border: "1px solid #30363D", borderRadius: "6px", color: "#F0F6FF", outline: "none", cursor: "pointer" }}>
                   <option value="">No team</option>
                   {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
@@ -278,24 +251,18 @@ export default function TeamsPage() {
           </div>
         </div>
 
-        {/* Assign Categories to Teams */}
-        <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "18px", marginTop: "16px" }}>
-          <h3 style={{ fontSize: "14px", fontWeight: 600, color: "#8B949E", margin: "0 0 14px", letterSpacing: "0.05em" }}>ASSIGN CATEGORIES TO TEAMS</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {/* Assign Categories */}
+        <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: "12px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>
+          <h3 style={{ fontSize: "11px", fontWeight: 700, color: "#8B949E", margin: "0 0 16px", letterSpacing: "0.08em" }}>ASSIGN CATEGORIES TO TEAMS</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {categories.map(cat => (
-              <div key={cat.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "#0D1117", borderRadius: "8px", border: "1px solid #21262D" }}>
+              <div key={cat.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#0D1117", borderRadius: "8px", border: "1px solid #21262D" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: cat.color }} />
+                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: cat.color, flexShrink: 0 }} />
                   <span style={{ fontSize: "13px", fontWeight: 500, color: "#C9D1D9" }}>{cat.name}</span>
                 </div>
-                <select
-                  value={cat.team_id || ""}
-                  onChange={e => {
-                    const selected = teams.find(t => t.id === e.target.value);
-                    assignCategoryToTeam(cat.id, e.target.value, selected?.name || "");
-                  }}
-                  style={{ padding: "6px 10px", fontSize: "12px", background: "#161B22", border: "1px solid #30363D", borderRadius: "6px", color: "#F0F6FF", outline: "none", cursor: "pointer" }}
-                >
+                <select value={cat.team_id || ""} onChange={e => { const t = teams.find(t => t.id === e.target.value); assignCategoryToTeam(cat.id, e.target.value, t?.name || ""); }}
+                  style={{ padding: "6px 10px", fontSize: "12px", background: "#161B22", border: "1px solid #30363D", borderRadius: "6px", color: "#F0F6FF", outline: "none", cursor: "pointer" }}>
                   <option value="">No team</option>
                   {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
@@ -306,7 +273,7 @@ export default function TeamsPage() {
       </div>
 
       {toast && (
-        <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: "#161B22", color: "#38D39F", padding: "12px 24px", borderRadius: "8px", fontSize: "13px", zIndex: 999, border: "1px solid rgba(56,211,159,0.3)", fontWeight: 500 }}>
+        <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: "#161B22", color: "#38D39F", padding: "12px 24px", borderRadius: "8px", fontSize: "13px", zIndex: 999, border: "1px solid rgba(56,211,159,0.3)", fontWeight: 500, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}>
           ✓ {toast}
         </div>
       )}
