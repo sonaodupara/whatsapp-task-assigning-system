@@ -92,35 +92,24 @@ function exportCSV(tasks: Task[]) {
 
 function exportReport(tasks: Task[]) {
   const lines: string[] = [];
-  lines.push("TASKSEND — TASK REPORT");
-  lines.push(`Generated: ${new Date().toLocaleDateString("en-IN")}`);
-  lines.push(`Total Tasks: ${tasks.length}`);
-  lines.push("=".repeat(60));
-  lines.push("");
-
-  tasks.forEach((t, i) => {
-    lines.push(`${i + 1}. ${t.title}`);
-    if (t.client_name) lines.push(`   Client: ${t.client_name}`);
-    if (t.category_name) lines.push(`   Category: ${t.category_name}`);
-    lines.push(`   Assigned To: ${t.assigned_to}`);
-    lines.push(`   Status: ${t.status}  |  Priority: ${t.priority || "Medium"}`);
-    if (t.deadline) lines.push(`   Deadline: ${formatDate(t.deadline)}`);
-    lines.push(`   Created: ${formatDate(t.created_at)}`);
-    lines.push("");
+  lines.push("<html><head><title>Task Report</title>");
+  lines.push("<style>body{font-family:sans-serif;padding:20px;color:#000}");
+  lines.push("h1{color:#1A5276}table{width:100%;border-collapse:collapse;margin-top:20px}");
+  lines.push("th{background:#1A5276;color:white;padding:8px;text-align:left}");
+  lines.push("td{padding:8px;border-bottom:1px solid #ddd}");
+  lines.push("tr:nth-child(even){background:#f5f5f5}</style></head><body>");
+  lines.push(`<h1>Task Report</h1>`);
+  lines.push(`<p>Generated: ${new Date().toLocaleDateString("en-IN")} | Total: ${tasks.length} tasks</p>`);
+  lines.push("<table><tr><th>Title</th><th>Client</th><th>Category</th><th>Assigned To</th><th>Status</th><th>Priority</th><th>Deadline</th></tr>");
+  tasks.forEach(t => {
+    lines.push(`<tr><td>${t.title}</td><td>${t.client_name || "-"}</td><td>${t.category_name || "-"}</td><td>${t.assigned_to}</td><td>${t.status}</td><td>${t.priority || "Medium"}</td><td>${t.deadline ? formatDate(t.deadline) : "-"}</td></tr>`);
   });
-
-  const content = lines.join("\n");
-
-  // Use Web Share API on mobile, download on desktop
-  if (navigator.share) {
-    navigator.share({ title: "Task Report", text: content });
-  } else {
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "tasks-report.txt"; a.click();
-    URL.revokeObjectURL(url);
-  }
+  lines.push("</table></body></html>");
+  const html = lines.join("");
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, "_blank");
+  if (win) setTimeout(() => win.print(), 500);
 }
 
 export default function Dashboard() {
