@@ -90,48 +90,8 @@ function exportCSV(tasks: Task[]) {
   a.href = url; a.download = "tasks.csv"; a.click();
 }
 
-function exportReport(tasks: Task[]) {
-  const rows = tasks.map(t => `
-    <tr>
-      <td>${t.title}</td>
-      <td>${t.client_name || "-"}</td>
-      <td>${t.category_name || "-"}</td>
-      <td>${t.assigned_to}</td>
-      <td>${t.status}</td>
-      <td>${t.priority || "Medium"}</td>
-      <td>${t.deadline ? formatDate(t.deadline) : "-"}</td>
-    </tr>`).join("");
-
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Task Report</title>
-  <style>
-    body { font-family: sans-serif; padding: 16px; color: #000; }
-    h1 { color: #1A5276; font-size: 20px; }
-    .btn { display: inline-block; margin: 12px 8px 12px 0; padding: 10px 20px; background: #1A5276; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-    th { background: #1A5276; color: white; padding: 8px; text-align: left; }
-    td { padding: 8px; border-bottom: 1px solid #ddd; }
-    tr:nth-child(even) { background: #f5f5f5; }
-    @media print { .btn { display: none; } }
-  </style>
-</head>
-<body>
-  <h1>TaskSend — Task Report</h1>
-  <p>Generated: ${new Date().toLocaleDateString("en-IN")} | Total: ${tasks.length} tasks</p>
-  <button class="btn" onclick="window.print()">Print / Save as PDF</button>
-  <table>
-    <tr><th>Title</th><th>Client</th><th>Category</th><th>Assigned</th><th>Status</th><th>Priority</th><th>Deadline</th></tr>
-    ${rows}
-  </table>
-</body>
-</html>`;
-
-  const blob = new Blob([html], { type: "text/html" });
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+function exportReport() {
+  window.location.href = "/report";
 }
 
 export default function Dashboard() {
@@ -349,7 +309,7 @@ export default function Dashboard() {
                       📊 Export CSV
                     </button>
                   )}
-                  <button onClick={() => { exportReport(filtered); setShowExport(false); }}
+                  <button onClick={() => { exportReport(); setShowExport(false); }}
                     style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "12px 16px", background: "transparent", color: "#C9D1D9", border: "none", cursor: "pointer", fontSize: "13px", textAlign: "left" as const }}>
                     📄 Share Report
                   </button>
