@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Send, BarChart2, Users, FolderOpen, Plus, LogOut, Menu, X } from 'lucide-react';
+import { Send, BarChart2, Users, FolderOpen, Plus, LogOut, Menu, X, CalendarDays } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'Send', icon: Send },
   { href: '/dashboard', label: 'Dashboard', icon: BarChart2 },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/categories', label: 'Categories', icon: FolderOpen },
   { href: '/teams', label: 'Teams', icon: Users },
