@@ -46,7 +46,7 @@ export default function CalendarPage() {
 
   async function fetchTasks(userId: string) {
     const { data } = await supabase.from("tasks").select("*").eq("user_id", userId).not("deadline", "is", null);
-    if (data) setTasks(data);
+     if (data) setTasks(data as Task[]);
   }
 
   function getDaysInMonth(month: number, year: number) {
@@ -58,8 +58,13 @@ export default function CalendarPage() {
   }
 
   function getTasksForDate(dateStr: string) {
-    return tasks.filter(t => t.deadline && t.deadline.startsWith(dateStr));
-  }
+  return tasks.filter(t => {
+    if (!t.deadline) return false;
+    const d = new Date(t.deadline);
+    const taskDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return taskDate === dateStr;
+  });
+}
 
   function handleDateClick(dateStr: string) {
     const dayTasks = getTasksForDate(dateStr);
