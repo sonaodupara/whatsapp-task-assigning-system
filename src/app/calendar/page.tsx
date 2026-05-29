@@ -224,7 +224,7 @@ export default function CalendarPage() {
                       {new Date(task.deadline! + "T00:00:00").getDate()}
                     </div>
                     <div style={{ fontSize: "10px", color: "#6B7A8D" }}>
-                      {MONTHS[new Date(task.deadline! + "T00:00:00").getMonth()].slice(0, 3)}
+                      {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][new Date(task.deadline! + "T00:00:00").getMonth()]}
                     </div>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
