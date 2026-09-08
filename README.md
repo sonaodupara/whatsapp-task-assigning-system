@@ -1,5 +1,6 @@
 # TaskSend — Enterprise WhatsApp Task Management System
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-000000?style=for-the-badge&logo=vercel)](https://whatsapp-task-system.vercel.app/)
 [![Next.js](https://img.shields.io/badge/Next.js-16.2.6-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -9,6 +10,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 TaskSend is an enterprise-grade task management ecosystem that operates directly through **WhatsApp** using the **Meta WhatsApp Business Cloud API**. Managers assign tasks via a web dashboard or voice/text commands on WhatsApp. Employees receive interactive WhatsApp notifications and update status with a single tap, requiring no additional mobile application installations.
+
+* **Live Demo:** [https://whatsapp-task-system.vercel.app/](https://whatsapp-task-system.vercel.app/)
 
 ---
 
@@ -138,7 +141,7 @@ GROQ_API_KEY=gsk_your_groq_api_key
 
 #### C. Configure Webhook Endpoint
 1. Deploy the application to Vercel or expose port 3000 using ngrok (`ngrok http 3000`).
-2. Set Webhook URL to `https://your-domain.com/api/webhook`.
+2. Set Webhook URL to `https://whatsapp-task-system.vercel.app/api/webhook` (or your domain).
 3. Set Verify Token to match `META_WEBHOOK_VERIFY_TOKEN`.
 4. Subscribe to the `messages` event field.
 
@@ -189,7 +192,7 @@ whatsapp-task-system/
 │   │   ├── login/                  # Supabase authentication page
 │   │   ├── page.tsx                # Main Task Assigner UI
 │   │   ├── layout.tsx              # App root layout
-│   │   └── globals.css             # TailwindCSS v4 styles & glassmorphism
+│   │   └── globals.css             # TailwindCSS v4 styles & glassmorphic themes
 │   ├── components/
 │   │   └── Layout.tsx              # Responsive navigation bar & layout wrapper
 │   └── lib/
