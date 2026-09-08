@@ -78,6 +78,11 @@ The project includes a dedicated, production-ready WhatsApp service layer locate
 * **`sendMetaInteractiveButtons(toPhone, bodyText, buttons)`**: Sends interactive quick reply buttons directly.
 * **`formatMetaPhoneNumber(phone)`**: Sanitizes international phone numbers into E.164 compliant digit strings required by Meta.
 
+> [!IMPORTANT]
+> **DISCLAIMER — Why a typed recipient number might not receive messages in Development vs. Production:**
+> * **In Meta Sandbox / Test Mode (Development)**: Meta restricts test phone numbers. You **MUST** manually add any recipient phone number to the allowed list in [Meta Developers Portal](https://developers.facebook.com/) under **WhatsApp -> API Setup -> "To phone number" dropdown -> Add phone number** (and verify via OTP) before Meta delivers messages to that typed number.
+> * **In Production Mode**: Once a verified Meta Business phone number is linked in Meta Business Manager, your app can send WhatsApp messages to **ANY typed phone number worldwide** without recipient pre-registration!
+
 ---
 
 ## 🚀 Quickstart & Setup Guide
@@ -124,9 +129,12 @@ GROQ_API_KEY=gsk_your_groq_api_key
 ### 5. Meta WhatsApp Business Cloud API Configuration
 
 #### A. Set up Meta WhatsApp Product
-1. Go to [Meta Developers Console](https://developers.facebook.com) and create a **Business App**.
+1. Go to [Meta Developers Console](https://developers.facebook.com/) and create a **Business App**.
 2. Add the **WhatsApp** product to your app.
 3. Under **WhatsApp -> API Setup**, obtain your `Phone Number ID` and a temporary or permanent System User `Access Token`.
+
+> [!WARNING]
+> **DEVELOPMENT DISCLAIMER:** In Meta Developer Sandbox mode, recipient phone numbers **MUST** be manually added to your Meta Console under **WhatsApp -> API Setup -> To phone number -> Add phone number** and verified via OTP. In Production mode with a verified business phone number, messages are sent to any typed number globally.
 
 #### B. Configure Meta Message Template (Optional for Quick Replies)
 1. In Meta WhatsApp Manager, navigate to **Message Templates** and create a template named `task_assigned_v2`.
