@@ -1,48 +1,53 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Fetch all tasks ordered by created_at descending
+    const authHeader = request.headers.get("Authorization");
+    const token = authHeader?.replace("Bearer ", "");
+    
+    // If auth header is provided, use authenticated Supabase client
+    if (!token) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Fetch tasks for current authenticated user ordered by created_at descending
     const { data: tasks, error: tasksError } = await supabase
       .from("tasks")
       .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (tasksError) {
-      return NextResponse.json({ success: false, error: tasksError.message });
+      return NextResponse.json({ success: false, error: tasksError.message }, { status: 500 });
     }
 
-    // Fetch all employees to map names in memory (robust against missing foreign keys)
-    const { data: employees, error: employeesError } = await supabase
+    // Fetch user's employees to map names in memory
+    const { data: employees } = await supabase
       .from("employees")
-      .select("name, phone");
+      .select("name, phone")
+      .eq("user_id", user.id);
 
-    if (employeesError) {
-      // If employees fail, we still return tasks but without employee names mapped
-      return NextResponse.json({ success: true, tasks });
-    }
+    const employeeMap = new Map((employees || []).map((emp) => [emp.phone, emp.name]));
 
-    // Map phone number to employee name
-    const employeeMap = new Map(employees.map(emp => [emp.phone, emp.name]));
-
-    const mappedTasks = tasks.map((task: any) => ({
+    const mappedTasks = (tasks || []).map((task: any) => ({
       ...task,
-      employee_name: employeeMap.get(task.assigned_to) || "Unknown Employee"
+      employee_name: employeeMap.get(task.assigned_to) || task.assigned_to || "Unassigned",
     }));
 
-    return NextResponse.json({ success: true, tasks: mappedMapped(mappedTasks) });
+    return NextResponse.json({ success: true, tasks: mappedTasks });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message });
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
-}
-
-// Quick helper to avoid naming mismatch
-function mappedMapped(arr: any[]) {
-  return arr;
 }

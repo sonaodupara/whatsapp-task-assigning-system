@@ -226,10 +226,10 @@ export default function CalendarPage() {
                 <div key={task.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid #21262D" }}>
                   <div style={{ width: "42px", textAlign: "center", flexShrink: 0 }}>
                     <div style={{ fontSize: "18px", fontWeight: 700, color: "#F0F6FF" }}>
-                      {new Date(task.deadline! + "T00:00:00").getDate()}
+                        {new Date(task.deadline!).getDate()}
                     </div>
                     <div style={{ fontSize: "10px", color: "#6B7A8D" }}>
-                      {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][new Date(task.deadline! + "T00:00:00").getMonth()]}
+                        {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][new Date(task.deadline!).getMonth()]}
                     </div>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>

@@ -1,17 +1,37 @@
 import { NextResponse } from "next/server";
-const twilio = require("twilio");
+import { sendMetaTextMessage } from "@/lib/whatsapp";
 
-export async function POST() {
-  const client = twilio(
-    process.env.TWILIO_ACCOUNT_SID,
-    process.env.TWILIO_AUTH_TOKEN
-  );
+export async function POST(request: Request) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const targetPhone = body.to || process.env.EMPLOYER_WHATSAPP;
 
-  const message = await client.messages.create({
-    from: process.env.TWILIO_WHATSAPP_FROM,
-    to: process.env.TWILIO_WHATSAPP_TO,
-    body: "Hello! This message was sent from your own app.",
-  });
+    if (!targetPhone) {
+      return NextResponse.json(
+        { success: false, error: "Recipient phone number required (provide 'to' in JSON body or set EMPLOYER_WHATSAPP)" },
+        { status: 400 }
+      );
+    }
 
-  return NextResponse.json({ success: true, sid: message.sid });
+    const testMessage = body.message || "👋 Hello! This is a test notification from TaskSend via Meta WhatsApp Cloud API.";
+
+    const result = await sendMetaTextMessage(targetPhone, testMessage);
+
+    if (result.ok && !result.data?.error) {
+      return NextResponse.json({
+        success: true,
+        provider: "Meta WhatsApp Cloud API",
+        message: "Test message dispatched successfully",
+        metaResponse: result.data,
+      });
+    }
+
+    return NextResponse.json({
+      success: false,
+      error: result.data?.error?.message || "Meta API error",
+      details: result.data,
+    }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
 }

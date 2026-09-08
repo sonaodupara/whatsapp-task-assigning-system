@@ -1,65 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
-async function sendWhatsAppMessage(to: string, shortId: string, taskTitle: string, priority: string, deadline: string) {
-  const phoneNumberId = process.env.META_PHONE_NUMBER_ID!;
-  const token = process.env.META_WHATSAPP_TOKEN!;
-
-  const response = await fetch(
-    `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: to,
-        type: "template",
-        template: {
-          name: "task_assigned_v2",
-          language: { code: "en" },
-          components: [
-            {
-              type: "body",
-              parameters: [
-                { type: "text", text: shortId },
-                { type: "text", text: taskTitle },
-                { type: "text", text: priority },
-                { type: "text", text: deadline }
-              ]
-            },
-            {
-              type: "button",
-              sub_type: "quick_reply",
-              index: "0",
-              parameters: [{ type: "payload", payload: `DONE_${shortId}` }]
-            },
-            {
-              type: "button",
-              sub_type: "quick_reply",
-              index: "1",
-              parameters: [{ type: "payload", payload: `PROGRESS_${shortId}` }]
-            },
-            {
-              type: "button",
-              sub_type: "quick_reply",
-              index: "2",
-              parameters: [{ type: "payload", payload: `CANNOT_${shortId}` }]
-            }
-          ]
-        }
-      }),
-    }
-  );
-  return response.json();
-}
+import { sendTaskAssignmentWhatsApp, formatMetaPhoneNumber } from "@/lib/whatsapp";
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("Authorization");
   const token = authHeader?.replace("Bearer ", "");
-  if (!token) return NextResponse.json({ success: false, error: "Unauthorized" });
+  if (!token) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -68,23 +14,42 @@ export async function POST(request: Request) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ success: false, error: "Unauthorized" });
+  if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
-  const { title, assigned_to, notes, deadline, priority, client_id, client_name, category_id, category_name, bulk } = await request.json();
+  const body = await request.json();
+  const { title, assigned_to, notes, deadline, priority, client_id, client_name, category_id, category_name, bulk } = body;
 
-  // For bulk tasks, only send WhatsApp — task already inserted by bulk page
+  if (!title || !assigned_to) {
+    return NextResponse.json({ success: false, error: "Title and assigned_to (employee phone) are required" }, { status: 400 });
+  }
+
+  // Format phone number to clean E.164 string with country code (e.g. +917025423667)
+  const rawDigits = assigned_to.replace(/\D/g, "");
+  const formattedPhone = rawDigits.length === 10 ? `+91${rawDigits}` : `+${rawDigits}`;
+
+  // Handle bulk task notification
   if (bulk) {
     const shortId = Math.random().toString(36).substring(2, 10).toUpperCase();
     const deadlineStr = deadline ? new Date(deadline).toLocaleDateString("en-IN") : "No deadline";
-    await sendWhatsAppMessage(assigned_to.replace("+", ""), shortId, title, priority || "Medium", deadlineStr);
-    return NextResponse.json({ success: true });
+
+    const waResult = await sendTaskAssignmentWhatsApp({
+      toPhone: formattedPhone,
+      shortId,
+      taskTitle: title,
+      priority: priority || "Medium",
+      deadline: deadlineStr,
+      notes: notes || undefined,
+    });
+
+    return NextResponse.json({ success: waResult.success, method: waResult.method, metaResponse: waResult.data });
   }
 
+  // Insert standard task into Supabase
   const { data, error } = await supabase
     .from("tasks")
     .insert([{
       title,
-      assigned_to,
+      assigned_to: formattedPhone,
       notes: notes || null,
       deadline: deadline || null,
       priority: priority || "Medium",
@@ -97,25 +62,31 @@ export async function POST(request: Request) {
     }])
     .select();
 
-  if (error) return NextResponse.json({ success: false, error: error.message });
+  if (error || !data || data.length === 0) {
+    return NextResponse.json({ success: false, error: error?.message || "Failed to create task" }, { status: 500 });
+  }
 
   const task = data[0];
   const shortId = task.id.split("-")[0].toUpperCase();
   const deadlineStr = task.deadline
-    ? new Date(task.deadline).toLocaleDateString("en-IN")
+    ? new Date(task.deadline).toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : "No deadline";
 
-  const waResult = await sendWhatsAppMessage(
-    assigned_to.replace("+", ""),
+  // Dispatch WhatsApp notification
+  const waResult = await sendTaskAssignmentWhatsApp({
+    toPhone: formattedPhone,
     shortId,
-    task.title,
-    task.priority || "Medium",
-    deadlineStr
-  );
+    taskTitle: task.title,
+    priority: task.priority || "Medium",
+    deadline: deadlineStr,
+    notes: task.notes || undefined,
+  });
 
-  console.log("META RESPONSE:", JSON.stringify(waResult));
-
-  if (waResult.error) return NextResponse.json({ success: false, metaError: waResult.error });
-
-  return NextResponse.json({ success: true, task });
+  return NextResponse.json({
+    success: true,
+    task,
+    whatsappSent: waResult.success,
+    deliveryMethod: waResult.method,
+    metaResponse: waResult.data,
+  });
 }
