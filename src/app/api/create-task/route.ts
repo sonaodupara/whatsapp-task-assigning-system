@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Title and assigned_to (employee phone) are required" }, { status: 400 });
   }
 
-  // Format phone number to clean E.164 string with country code (e.g. +917025423667)
+  // Format phone number to clean E.164 string with country code (e.g. +919876543210)
   const rawDigits = assigned_to.replace(/\D/g, "");
   const formattedPhone = rawDigits.length === 10 ? `+91${rawDigits}` : `+${rawDigits}`;
 

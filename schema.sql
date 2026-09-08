@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS public.tasks (
     notes TEXT,
     deadline TIMESTAMPTZ,
     priority TEXT DEFAULT 'Medium' CHECK (priority IN ('High', 'Medium', 'Low')),
-    assigned_to TEXT NOT NULL, -- Employee phone number (e.g. +917025423667)
+    assigned_to TEXT NOT NULL, -- Employee phone number (e.g. +919876543210)
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'cannot_complete')),
     client_id UUID REFERENCES public.clients(id) ON DELETE SET NULL,
     client_name TEXT,

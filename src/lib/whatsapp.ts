@@ -16,9 +16,9 @@ export interface TaskWhatsAppPayload {
  * Format phone number to clean digit format required by Meta WhatsApp API
  * Automatically appends default country code (e.g. 91) if 10-digit number is provided.
  * Examples:
- *   "+91 70254 23667" -> "917025423667"
- *   "7025423667"     -> "917025423667"
- *   "917025423667"   -> "917025423667"
+ *   "+91 98765 43210" -> "919876543210"
+ *   "9876543210"     -> "919876543210"
+ *   "919876543210"   -> "919876543210"
  */
 export function formatMetaPhoneNumber(phone: string, defaultCountryCode = "91"): string {
   if (!phone) return "";
